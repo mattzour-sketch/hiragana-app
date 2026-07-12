@@ -1,4 +1,4 @@
-const CACHE_NAME = "hiragana-cache-v1";
+const CACHE_NAME = "hiragana-cache-v2";
 const APP_SHELL = [
   "./",
   "index.html",
@@ -28,24 +28,22 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Cache-first for the app shell, falling back to network (and caching the
-// result) for anything else same-origin. This keeps the app fully usable
-// offline once it's been opened once.
+// Network-first, falling back to the cache when offline. This means updates
+// (new HTML/CSS/JS) show up immediately whenever there's a connection, and
+// the cached copy only kicks in when the network request fails — so the app
+// still works offline without ever serving a stale version while online.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return response;
-        })
-        .catch(() => cached);
-    })
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
