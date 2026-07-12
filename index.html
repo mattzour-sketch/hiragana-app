@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ひらがな — Hiragana trenér</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#c0453a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hiragana">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>ひらがな <span class="subtitle">Hiragana trenér</span></h1>
+  <div class="topbar-actions">
+    <div class="volume-control">
+      <span class="volume-icon">🔊</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="100">
+      <span class="volume-value" id="volumeValue">100%</span>
+    </div>
+    <button id="installBtn" class="install-btn" hidden>📲 Instalovat appku</button>
+    <button id="themeToggle" class="icon-btn" title="Přepnout téma">🌙</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="read">Čtení</button>
+  <button class="tab-btn" data-tab="sentences">Věty</button>
+  <button class="tab-btn" data-tab="flashcards">Kartičky</button>
+  <button class="tab-btn" data-tab="conversations">Konverzace</button>
+  <button class="tab-btn" data-tab="grammar">Gramatika</button>
+  <button class="tab-btn" data-tab="builder">Skládání vět</button>
+  <button class="tab-btn" data-tab="quiz">Kvíz</button>
+</nav>
+
+<main>
+  <section id="read" class="tab-panel active">
+    <p class="hint">Klikni na znak a uslyšíš jeho výslovnost (pokud to prohlížeč podporuje).</p>
+
+    <h2>Základní znaky (gojūon)</h2>
+    <div id="basicChart" class="chart"></div>
+
+    <h2>Dakuten / Handakuten</h2>
+    <div id="dakutenChart" class="chart"></div>
+
+    <h2>Yōon (kombinace)</h2>
+    <div id="yoonChart" class="chart"></div>
+  </section>
+
+  <section id="sentences" class="tab-panel">
+    <p class="hint">Zkus si větu přečíst nahlas, pak si klikni na čtení a překlad.</p>
+    <div id="sentenceList" class="sentence-list"></div>
+  </section>
+
+  <section id="flashcards" class="tab-panel">
+    <p class="hint">Klikni na kartičku a otoč ji — vpředu je obrázek, vzadu japonské slovo.</p>
+    <div class="flashcard-progress">
+      <span id="flashcardCount">1 / 16</span>
+      <span id="flashcardKnown">Umím: 0</span>
+    </div>
+    <div class="flashcard-stage">
+      <div class="flashcard" id="flashcard">
+        <div class="flashcard-face flashcard-front" id="flashcardFront"></div>
+        <div class="flashcard-face flashcard-back" id="flashcardBack"></div>
+      </div>
+    </div>
+    <div class="flashcard-actions">
+      <button id="flashcardPrev" class="secondary-btn">◀ Předchozí</button>
+      <button id="flashcardShuffle" class="secondary-btn">🔀 Zamíchat</button>
+      <button id="flashcardNext" class="secondary-btn">Další ▶</button>
+    </div>
+    <div class="flashcard-know-actions">
+      <button id="flashcardDontKnow" class="know-btn dont-know-btn">✗ Ještě neumím</button>
+      <button id="flashcardKnowBtn" class="know-btn know-btn-yes">✓ Umím</button>
+    </div>
+  </section>
+
+  <section id="conversations" class="tab-panel">
+    <p class="hint">Krátké dialogy dvou lidí. Klikni na řádek a uvidíš čtení a překlad.</p>
+    <div id="conversationList" class="conversation-list"></div>
+  </section>
+
+  <section id="grammar" class="tab-panel">
+    <h2>Základní stavba japonské věty</h2>
+    <p class="hint">
+      Japonština má slovosled <strong>Podmět – Předmět – Sloveso (SOV)</strong>, zatímco čeština/angličtina
+      mají SVO. Sloveso je vždy AŽ NA KONCI věty. Místo pořadí slov se role slova ve větě
+      označuje pomocí <strong>částic</strong> (は, が, を, に...), které se píší hned za dané slovo.
+    </p>
+
+    <div class="grammar-box">
+      <div class="grammar-compare">
+        <div class="grammar-lang">
+          <span class="lang-label">Čeština/EN (SVO)</span>
+          <span class="lang-sentence">Já <em>piju</em> kávu.</span>
+        </div>
+        <div class="grammar-arrow">→</div>
+        <div class="grammar-lang">
+          <span class="lang-label">Japonsky (SOV)</span>
+          <span class="lang-sentence">わたし<b>は</b> コーヒー<b>を</b> <em>のみます</em>。</span>
+        </div>
+      </div>
+      <p class="grammar-note">watashi <b>wa</b> koohii <b>o</b> <em>nomimasu</em> — doslova: "já (téma) kávu (předmět) piji"</p>
+    </div>
+
+    <h2>Částice (jóší) — klíč k japonské větě</h2>
+    <p class="hint">Částice se píší za slovem a určují jeho roli ve větě. Klikni na příklad pro přehrání.</p>
+    <div id="particleList" class="particle-list"></div>
+
+    <h2>Základní vzorce vět</h2>
+    <div class="pattern-list">
+      <div class="pattern-card">
+        <div class="pattern-formula">X は Y です</div>
+        <div class="pattern-desc">"X je Y" — základní věta typu podmět je přísudek.</div>
+        <div class="pattern-example">これは ほんです → This is a book.</div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-formula">X は Y じゃないです</div>
+        <div class="pattern-desc">Zápor: "X není Y" (hovorově), formálně "Y では ありません".</div>
+        <div class="pattern-example">これは ほんじゃないです → This is not a book.</div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-formula">X は Y ですか</div>
+        <div class="pattern-desc">Otázka: přidáním か na konec se z výroku stane otázka. Slovosled se nemění.</div>
+        <div class="pattern-example">これは ほんですか → Is this a book?</div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-formula">X が すきです</div>
+        <div class="pattern-desc">"Mám rád X" — doslova "X je oblíbené", proto X + が, ne を.</div>
+        <div class="pattern-example">いぬが すきです → I like dogs.</div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-formula">X を [sloveso]ます</div>
+        <div class="pattern-desc">Předmět děje + sloveso v přítomném/budoucím zdvořilém čase (-masu).</div>
+        <div class="pattern-example">おんがくを ききます → I listen to music.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="builder" class="tab-panel">
+    <p class="hint">Poskládej japonskou větu ze slov/částic ve správném pořadí. Slova jsou dole, klikáním je přidáváš do věty.</p>
+    <div class="builder-progress">
+      <span id="builderCount">1 / 8</span>
+      <span id="builderScore">Správně: 0</span>
+    </div>
+    <div class="builder-card">
+      <div class="builder-prompt" id="builderPrompt">?</div>
+      <div class="builder-answer" id="builderAnswer"></div>
+      <div class="builder-bank" id="builderBank"></div>
+      <div class="builder-feedback" id="builderFeedback"></div>
+      <div class="builder-actions">
+        <button id="builderCheck" class="primary-btn">Zkontrolovat</button>
+        <button id="builderReset" class="secondary-btn">Zamíchat znovu</button>
+        <button id="builderNext" class="secondary-btn" hidden>Další věta</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="quiz" class="tab-panel">
+    <div class="quiz-setup" id="quizSetup">
+      <h2>Nastavení kvízu</h2>
+      <div class="setup-group">
+        <label>Kategorie znaků</label>
+        <div class="chip-group" id="categoryChips">
+          <button class="chip active" data-cat="basic">Základní</button>
+          <button class="chip" data-cat="dakuten">Dakuten</button>
+          <button class="chip" data-cat="yoon">Yōon</button>
+        </div>
+      </div>
+      <div class="setup-group">
+        <label>Směr</label>
+        <div class="chip-group" id="directionChips">
+          <button class="chip active" data-dir="char2romaji">Znak → výslovnost</button>
+          <button class="chip" data-dir="romaji2char">Výslovnost → znak</button>
+          <button class="chip" data-dir="audio2char">Poslech → znak</button>
+        </div>
+      </div>
+      <button id="startQuiz" class="primary-btn">Spustit kvíz</button>
+      <p class="hint builder-hint">Kvíz se přizpůsobuje — znaky, ve kterých chybuješ, se objevují častěji.</p>
+      <div id="weakSpots" class="weak-spots"></div>
+    </div>
+
+    <div class="quiz-play" id="quizPlay" hidden>
+      <div class="quiz-progress">
+        <span id="quizScore">Skóre: 0</span>
+        <span id="quizCount">0 / 0</span>
+      </div>
+      <div class="quiz-card">
+        <div class="quiz-prompt" id="quizPrompt">?</div>
+        <div class="quiz-options" id="quizOptions"></div>
+      </div>
+      <button id="quitQuiz" class="secondary-btn">Ukončit kvíz</button>
+    </div>
+
+    <div class="quiz-result" id="quizResult" hidden>
+      <h2>Výsledek</h2>
+      <p id="resultText"></p>
+      <button id="retryQuiz" class="primary-btn">Zkusit znovu</button>
+    </div>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
