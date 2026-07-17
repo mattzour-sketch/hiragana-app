@@ -71,6 +71,80 @@ const YOON_ROWS = [
   { label: "pya", items: HIRAGANA_YOON.slice(30,33) },
 ];
 
+// Katakana: same sounds as hiragana, used mainly for foreign loanwords.
+const KATAKANA_BASIC = [
+  ["ア","a"],["イ","i"],["ウ","u"],["エ","e"],["オ","o"],
+  ["カ","ka"],["キ","ki"],["ク","ku"],["ケ","ke"],["コ","ko"],
+  ["サ","sa"],["シ","shi"],["ス","su"],["セ","se"],["ソ","so"],
+  ["タ","ta"],["チ","chi"],["ツ","tsu"],["テ","te"],["ト","to"],
+  ["ナ","na"],["ニ","ni"],["ヌ","nu"],["ネ","ne"],["ノ","no"],
+  ["ハ","ha"],["ヒ","hi"],["フ","fu"],["ヘ","he"],["ホ","ho"],
+  ["マ","ma"],["ミ","mi"],["ム","mu"],["メ","me"],["モ","mo"],
+  ["ヤ","ya"],["ユ","yu"],["ヨ","yo"],
+  ["ラ","ra"],["リ","ri"],["ル","ru"],["レ","re"],["ロ","ro"],
+  ["ワ","wa"],["ヲ","wo"],["ン","n"],
+];
+
+const KATAKANA_DAKUTEN = [
+  ["ガ","ga"],["ギ","gi"],["グ","gu"],["ゲ","ge"],["ゴ","go"],
+  ["ザ","za"],["ジ","ji"],["ズ","zu"],["ゼ","ze"],["ゾ","zo"],
+  ["ダ","da"],["ヂ","ji"],["ヅ","zu"],["デ","de"],["ド","do"],
+  ["バ","ba"],["ビ","bi"],["ブ","bu"],["ベ","be"],["ボ","bo"],
+  ["パ","pa"],["ピ","pi"],["プ","pu"],["ペ","pe"],["ポ","po"],
+];
+
+const KATAKANA_YOON = [
+  ["キャ","kya"],["キュ","kyu"],["キョ","kyo"],
+  ["シャ","sha"],["シュ","shu"],["ショ","sho"],
+  ["チャ","cha"],["チュ","chu"],["チョ","cho"],
+  ["ニャ","nya"],["ニュ","nyu"],["ニョ","nyo"],
+  ["ヒャ","hya"],["ヒュ","hyu"],["ヒョ","hyo"],
+  ["ミャ","mya"],["ミュ","myu"],["ミョ","myo"],
+  ["リャ","rya"],["リュ","ryu"],["リョ","ryo"],
+  ["ギャ","gya"],["ギュ","gyu"],["ギョ","gyo"],
+  ["ジャ","ja"],["ジュ","ju"],["ジョ","jo"],
+  ["ビャ","bya"],["ビュ","byu"],["ビョ","byo"],
+  ["ピャ","pya"],["ピュ","pyu"],["ピョ","pyo"],
+];
+
+const KATAKANA_ALL = KATAKANA_BASIC.concat(KATAKANA_DAKUTEN, KATAKANA_YOON);
+
+const KATAKANA_BASIC_ROWS = [
+  { label: "a-row", items: KATAKANA_BASIC.slice(0,5) },
+  { label: "ka", items: KATAKANA_BASIC.slice(5,10) },
+  { label: "sa", items: KATAKANA_BASIC.slice(10,15) },
+  { label: "ta", items: KATAKANA_BASIC.slice(15,20) },
+  { label: "na", items: KATAKANA_BASIC.slice(20,25) },
+  { label: "ha", items: KATAKANA_BASIC.slice(25,30) },
+  { label: "ma", items: KATAKANA_BASIC.slice(30,35) },
+  { label: "ya", items: [KATAKANA_BASIC[35], null, KATAKANA_BASIC[36], null, KATAKANA_BASIC[37]] },
+  { label: "ra", items: KATAKANA_BASIC.slice(38,43) },
+  { label: "wa", items: [KATAKANA_BASIC[43], null, null, null, KATAKANA_BASIC[44]] },
+  { label: "n", items: [KATAKANA_BASIC[45], null, null, null, null] },
+];
+
+const KATAKANA_DAKUTEN_ROWS = [
+  { label: "ga", items: KATAKANA_DAKUTEN.slice(0,5) },
+  { label: "za", items: KATAKANA_DAKUTEN.slice(5,10) },
+  { label: "da", items: KATAKANA_DAKUTEN.slice(10,15) },
+  { label: "ba", items: KATAKANA_DAKUTEN.slice(15,20) },
+  { label: "pa", items: KATAKANA_DAKUTEN.slice(20,25) },
+];
+
+const KATAKANA_YOON_ROWS = [
+  { label: "kya", items: KATAKANA_YOON.slice(0,3) },
+  { label: "sha", items: KATAKANA_YOON.slice(3,6) },
+  { label: "cha", items: KATAKANA_YOON.slice(6,9) },
+  { label: "nya", items: KATAKANA_YOON.slice(9,12) },
+  { label: "hya", items: KATAKANA_YOON.slice(12,15) },
+  { label: "mya", items: KATAKANA_YOON.slice(15,18) },
+  { label: "rya", items: KATAKANA_YOON.slice(18,21) },
+  { label: "gya", items: KATAKANA_YOON.slice(21,24) },
+  { label: "ja", items: KATAKANA_YOON.slice(24,27) },
+  { label: "bya", items: KATAKANA_YOON.slice(27,30) },
+  { label: "pya", items: KATAKANA_YOON.slice(30,33) },
+];
+
 // Sentences using real kanji, with furigana (hiragana reading) attached to each
 // kanji segment so the reading shows above the kanji as ruby text.
 // Each entry: { segments: [{t: text, f?: furigana}], romaji, english }

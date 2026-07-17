@@ -101,6 +101,17 @@ body {
   cursor: pointer;
 }
 
+.voice-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  max-width: 150px;
+  cursor: pointer;
+}
+
 .install-btn {
   background: var(--accent);
   color: white;
@@ -755,6 +766,17 @@ h2 {
   font-weight: 600;
 }
 
+.practice-weak-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .reset-stats-btn {
   background: none;
   border: none;
@@ -831,6 +853,17 @@ h2 {
 .quiz-prompt {
   font-size: 3rem;
   margin-bottom: 1.5rem;
+  line-height: 1.8;
+}
+
+.quiz-prompt ruby {
+  ruby-align: center;
+}
+
+.quiz-prompt rt {
+  font-size: 1rem;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .play-prompt-btn {

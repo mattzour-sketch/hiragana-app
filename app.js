@@ -48,15 +48,44 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 
 // --- Speech ---
 let ttsVolume = parseFloat(localStorage.getItem("hiragana-volume") ?? "1");
+let selectedVoiceURI = localStorage.getItem("hiragana-voice") || "";
 
 function speak(char) {
   if (!("speechSynthesis" in window)) return;
   const utter = new SpeechSynthesisUtterance(char);
   utter.lang = "ja-JP";
   utter.volume = ttsVolume;
+  const voice = speechSynthesis.getVoices().find(v => v.voiceURI === selectedVoiceURI);
+  if (voice) utter.voice = voice;
   speechSynthesis.cancel();
   speechSynthesis.speak(utter);
 }
+
+// Voice picker: only shown when the system offers more than one Japanese voice.
+const voiceSelect = document.getElementById("voiceSelect");
+function populateVoices() {
+  if (!("speechSynthesis" in window)) return;
+  const jaVoices = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("ja"));
+  if (jaVoices.length < 2) {
+    voiceSelect.hidden = true;
+    return;
+  }
+  voiceSelect.hidden = false;
+  voiceSelect.innerHTML = jaVoices.map(v =>
+    `<option value="${v.voiceURI}"${v.voiceURI === selectedVoiceURI ? " selected" : ""}>${v.name}</option>`
+  ).join("");
+  if (!jaVoices.some(v => v.voiceURI === selectedVoiceURI)) {
+    selectedVoiceURI = jaVoices[0].voiceURI;
+  }
+}
+if ("speechSynthesis" in window) {
+  populateVoices();
+  speechSynthesis.addEventListener("voiceschanged", populateVoices);
+}
+voiceSelect.addEventListener("change", () => {
+  selectedVoiceURI = voiceSelect.value;
+  localStorage.setItem("hiragana-voice", selectedVoiceURI);
+});
 
 const volumeSlider = document.getElementById("volumeSlider");
 const volumeValue = document.getElementById("volumeValue");
@@ -92,6 +121,9 @@ function renderChart(containerId, rows, isYoon) {
 renderChart("basicChart", BASIC_ROWS, false);
 renderChart("dakutenChart", DAKUTEN_ROWS, false);
 renderChart("yoonChart", YOON_ROWS, true);
+renderChart("katakanaBasicChart", KATAKANA_BASIC_ROWS, false);
+renderChart("katakanaDakutenChart", KATAKANA_DAKUTEN_ROWS, false);
+renderChart("katakanaYoonChart", KATAKANA_YOON_ROWS, true);
 
 // --- Sentences ---
 function segmentsToHtml(segments) {
@@ -212,13 +244,18 @@ document.getElementById("flashcardShuffle").addEventListener("click", () => {
   goToFlashcard(0);
 });
 document.getElementById("flashcardKnowBtn").addEventListener("click", () => {
+  const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
   flashcardKnown.add(flashcardOrder[flashcardIndex]);
   saveFlashcardKnown();
+  // Feed the shared adaptive stats so the vocab quiz prioritizes unknown words.
+  updateKanaStat(segmentsToPlainText(card.segments), true);
   goToFlashcard(flashcardIndex + 1);
 });
 document.getElementById("flashcardDontKnow").addEventListener("click", () => {
+  const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
   flashcardKnown.delete(flashcardOrder[flashcardIndex]);
   saveFlashcardKnown();
+  updateKanaStat(segmentsToPlainText(card.segments), false);
   goToFlashcard(flashcardIndex + 1);
 });
 
@@ -403,9 +440,28 @@ function initBuilder() {
 initBuilder();
 
 // --- Quiz ---
-const CATEGORY_MAP = { basic: HIRAGANA_BASIC, dakuten: HIRAGANA_DAKUTEN, yoon: HIRAGANA_YOON };
+// Vocab pairs mirror the kana [prompt, answer] shape, with two extra fields:
+// [plainWord, english, rubyHtml, romaji]. isVocabPair() branches on length.
+const VOCAB_PAIRS = FLASHCARDS.map(c => [
+  segmentsToPlainText(c.segments),
+  c.english,
+  segmentsToHtml(c.segments),
+  c.romaji,
+]);
+const ALL_KANA = HIRAGANA_BASIC.concat(HIRAGANA_DAKUTEN, HIRAGANA_YOON, KATAKANA_ALL);
+const CATEGORY_MAP = {
+  basic: HIRAGANA_BASIC,
+  dakuten: HIRAGANA_DAKUTEN,
+  yoon: HIRAGANA_YOON,
+  katakana: KATAKANA_ALL,
+  vocab: VOCAB_PAIRS,
+};
 let selectedCategories = ["basic"];
 let selectedDirection = "char2romaji";
+
+function isVocabPair(pair) {
+  return pair.length > 2;
+}
 
 // Adaptive weighting: characters answered wrong more often show up more.
 const KANA_STATS_KEY = "hiragana-kana-stats";
@@ -464,8 +520,10 @@ function renderWeakSpots() {
   container.innerHTML = `
     <span class="weak-spots-label">Nejvíc ti dělá potíže:</span>
     ${entries.map(([char]) => `<span class="weak-chip">${char}</span>`).join("")}
+    <button id="practiceWeak" class="practice-weak-btn">🎯 Procvičit</button>
     <button id="resetStats" class="reset-stats-btn">Vynulovat statistiky</button>
   `;
+  document.getElementById("practiceWeak").addEventListener("click", () => startWeakQuiz());
   document.getElementById("resetStats").addEventListener("click", () => {
     localStorage.removeItem(KANA_STATS_KEY);
     renderWeakSpots();
@@ -475,6 +533,14 @@ renderWeakSpots();
 
 document.querySelectorAll("#categoryChips .chip").forEach(chip => {
   chip.addEventListener("click", () => {
+    // "Slovíčka" is exclusive: mixing word questions with single-kana questions
+    // would produce nonsense answer options, so selecting one side clears the other.
+    if (chip.dataset.cat === "vocab" && !chip.classList.contains("active")) {
+      document.querySelectorAll("#categoryChips .chip").forEach(c => c.classList.remove("active"));
+    } else if (chip.dataset.cat !== "vocab") {
+      const vocabChip = document.querySelector('#categoryChips .chip[data-cat="vocab"]');
+      if (vocabChip) vocabChip.classList.remove("active");
+    }
     chip.classList.toggle("active");
     const active = [...document.querySelectorAll("#categoryChips .chip.active")];
     if (active.length === 0) {
@@ -505,6 +571,8 @@ let quizPool = [];
 let quizQueue = [];
 let currentQuestion = null;
 let score = 0;
+let quizMode = "normal"; // "normal" | "weak"
+let roundLength = 10;
 const QUESTIONS_PER_ROUND = 10;
 
 function shuffle(arr) {
@@ -541,6 +609,13 @@ function pickOptions(correct, pool) {
   return shuffle([correct, ...wrong]);
 }
 
+// In weak-spot mode the round's own pool can be tiny (even 1 item), so wrong
+// options are drawn from the full set of the same kind instead.
+function optionPoolFor(question) {
+  if (quizMode === "weak") return isVocabPair(question) ? VOCAB_PAIRS : ALL_KANA;
+  return quizPool;
+}
+
 function nextQuestion() {
   if (quizQueue.length === 0) {
     finishQuiz();
@@ -552,11 +627,14 @@ function nextQuestion() {
     quizPrompt.innerHTML = `<button class="play-prompt-btn" id="playPromptBtn" title="Přehrát">🔊</button>`;
     document.getElementById("playPromptBtn").addEventListener("click", () => speak(char));
     speak(char);
+  } else if (selectedDirection === "char2romaji" && isVocabPair(currentQuestion)) {
+    // Vocab prompt shows the word with furigana; the answer is the meaning.
+    quizPrompt.innerHTML = currentQuestion[2];
   } else {
     quizPrompt.textContent = selectedDirection === "char2romaji" ? currentQuestion[0] : currentQuestion[1];
   }
   quizOptions.innerHTML = "";
-  const options = pickOptions(currentQuestion, quizPool);
+  const options = pickOptions(currentQuestion, optionPoolFor(currentQuestion));
   options.forEach(opt => {
     const btn = document.createElement("button");
     btn.className = "option-btn";
@@ -564,7 +642,7 @@ function nextQuestion() {
     btn.addEventListener("click", () => handleAnswer(btn, opt));
     quizOptions.appendChild(btn);
   });
-  quizCountEl.textContent = `${QUESTIONS_PER_ROUND - quizQueue.length} / ${QUESTIONS_PER_ROUND}`;
+  quizCountEl.textContent = `${roundLength - quizQueue.length} / ${roundLength}`;
 }
 
 function handleAnswer(btn, opt) {
@@ -590,19 +668,40 @@ function finishQuiz() {
   quizPlay.hidden = true;
   quizResult.hidden = false;
   document.getElementById("resultText").textContent =
-    `Skóre ${score} / ${QUESTIONS_PER_ROUND} — ${score === QUESTIONS_PER_ROUND ? "perfektní! 🎉" : score >= QUESTIONS_PER_ROUND * 0.7 ? "hezká práce!" : "trénuj dál!"}`;
+    `Skóre ${score} / ${roundLength} — ${score === roundLength ? "perfektní! 🎉" : score >= roundLength * 0.7 ? "hezká práce!" : "trénuj dál!"}`;
 }
 
-function startQuiz() {
-  quizPool = buildPool();
-  const count = Math.min(QUESTIONS_PER_ROUND, quizPool.length);
-  quizQueue = shuffle(weightedSample(quizPool, count)).reverse();
+function beginRound(queue) {
+  quizQueue = queue;
+  roundLength = queue.length;
   score = 0;
   quizScoreEl.textContent = "Skóre: 0";
   quizSetup.hidden = true;
   quizResult.hidden = true;
   quizPlay.hidden = false;
   nextQuestion();
+}
+
+function startQuiz() {
+  quizMode = "normal";
+  quizPool = buildPool();
+  const count = Math.min(QUESTIONS_PER_ROUND, quizPool.length);
+  beginRound(shuffle(weightedSample(quizPool, count)).reverse());
+}
+
+// Targeted practice: a round built only from the user's current weak spots.
+function startWeakQuiz() {
+  const stats = loadKanaStats();
+  const lookup = new Map(ALL_KANA.concat(VOCAB_PAIRS).map(p => [p[0], p]));
+  const weak = Object.entries(stats)
+    .filter(([key, s]) => s.wrong > 0 && lookup.has(key))
+    .sort((a, b) => kanaWeight(b[0], stats) - kanaWeight(a[0], stats))
+    .slice(0, QUESTIONS_PER_ROUND)
+    .map(([key]) => lookup.get(key));
+  if (weak.length === 0) return;
+  quizMode = "weak";
+  quizPool = weak;
+  beginRound(shuffle(weak).reverse());
 }
 
 document.getElementById("startQuiz").addEventListener("click", startQuiz);
