@@ -43,6 +43,11 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById(btn.dataset.tab).classList.add("active");
+    // These panels depend on stored progress that other tabs change, and on
+    // wall-clock time (SRS due dates), so they refresh on every visit.
+    if (btn.dataset.tab === "progress") renderProgress();
+    if (btn.dataset.tab === "flashcards") buildFlashcardDeck();
+    if (btn.dataset.tab === "typing") startTypingRound();
   });
 });
 
@@ -96,6 +101,147 @@ volumeSlider.addEventListener("input", () => {
   volumeValue.textContent = `${volumeSlider.value}%`;
   localStorage.setItem("hiragana-volume", ttsVolume);
 });
+
+// --- Shared learning state ---
+// One store per concern, all keyed by the item itself (a kana char or a plain
+// word), so the quiz, typing drills and flashcards all describe the same item
+// with the same key and feed each other.
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const KANA_STATS_KEY = "hiragana-kana-stats";
+function loadKanaStats() {
+  try {
+    return JSON.parse(localStorage.getItem(KANA_STATS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function saveKanaStats(stats) {
+  localStorage.setItem(KANA_STATS_KEY, JSON.stringify(stats));
+}
+function updateKanaStat(key, correct) {
+  const stats = loadKanaStats();
+  if (!stats[key]) stats[key] = { correct: 0, wrong: 0 };
+  stats[key][correct ? "correct" : "wrong"]++;
+  saveKanaStats(stats);
+  recordActivity();
+}
+function kanaWeight(key, stats) {
+  const s = stats[key] || { correct: 0, wrong: 0 };
+  return Math.max(0.3, 1 + s.wrong * 2 - s.correct * 0.3);
+}
+
+// Spaced repetition (Leitner boxes): a correct answer moves the card one box
+// up and pushes its next review further out; a wrong answer resets it to box 0.
+const SRS_KEY = "hiragana-srs";
+const SRS_INTERVALS_MS = [
+  10 * 60 * 1000,
+  24 * 60 * 60 * 1000,
+  3 * 24 * 60 * 60 * 1000,
+  7 * 24 * 60 * 60 * 1000,
+  14 * 24 * 60 * 60 * 1000,
+  30 * 24 * 60 * 60 * 1000,
+];
+const SRS_MAX_BOX = SRS_INTERVALS_MS.length - 1;
+const SRS_MASTERED_BOX = 3;
+const REVIEW_BATCH = 20;
+
+function loadSrs() {
+  try {
+    return JSON.parse(localStorage.getItem(SRS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function saveSrs(srs) {
+  localStorage.setItem(SRS_KEY, JSON.stringify(srs));
+}
+function scheduleSrs(key, correct) {
+  const srs = loadSrs();
+  const current = srs[key] || { box: 0, due: 0 };
+  const box = correct ? Math.min(current.box + 1, SRS_MAX_BOX) : 0;
+  srs[key] = { box, due: Date.now() + SRS_INTERVALS_MS[box] };
+  saveSrs(srs);
+  return srs[key];
+}
+// Cards never reviewed count as due, so a fresh deck starts fully available.
+function dueCardIndices() {
+  const srs = loadSrs();
+  const now = Date.now();
+  const due = [];
+  FLASHCARDS.forEach((card, i) => {
+    const entry = srs[segmentsToPlainText(card.segments)];
+    if (!entry || entry.due <= now) due.push({ i, due: entry ? entry.due : 0 });
+  });
+  due.sort((a, b) => a.due - b.due);
+  return due.map(d => d.i);
+}
+function nextDueTime() {
+  const srs = loadSrs();
+  const times = FLASHCARDS
+    .map(card => srs[segmentsToPlainText(card.segments)])
+    .filter(Boolean)
+    .map(entry => entry.due)
+    .filter(due => due > Date.now());
+  return times.length ? Math.min(...times) : null;
+}
+function masteredCardCount() {
+  const srs = loadSrs();
+  return FLASHCARDS.filter(card => {
+    const entry = srs[segmentsToPlainText(card.segments)];
+    return entry && entry.box >= SRS_MASTERED_BOX;
+  }).length;
+}
+function formatInterval(ms) {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${Math.max(1, minutes)} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "1 den" : days < 5 ? `${days} dny` : `${days} dní`;
+}
+
+// Daily answer counts, used by the progress dashboard.
+const ACTIVITY_KEY = "hiragana-activity";
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+function loadActivity() {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVITY_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function recordActivity() {
+  const activity = loadActivity();
+  const key = todayKey();
+  activity[key] = (activity[key] || 0) + 1;
+  // Keep the store small: only the last 30 days matter for the dashboard.
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  Object.keys(activity).forEach(k => {
+    if (k < cutoff) delete activity[k];
+  });
+  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity));
+}
+
+// 0 = not started, 1 = learning, 2 = mastered.
+function itemMastery(key, stats, srs) {
+  const s = stats[key];
+  const entry = srs[key];
+  if (!s && !entry) return 0;
+  const correct = s ? s.correct : 0;
+  const wrong = s ? s.wrong : 0;
+  if ((entry && entry.box >= SRS_MASTERED_BOX) || (correct >= 3 && correct >= wrong * 2)) return 2;
+  return 1;
+}
 
 // --- Reading charts ---
 function renderChart(containerId, rows, isYoon) {
@@ -167,24 +313,69 @@ function renderSentences() {
 }
 renderSentences();
 
-// --- Flashcards ---
-const FLASHCARD_KNOWN_KEY = "hiragana-flashcards-known";
-let flashcardOrder = FLASHCARDS.map((_, i) => i);
+// --- Flashcards (spaced repetition) ---
+let flashcardMode = "review";
+let flashcardOrder = [];
 let flashcardIndex = 0;
 let flashcardFlipped = false;
-let flashcardKnown = new Set(JSON.parse(localStorage.getItem(FLASHCARD_KNOWN_KEY) || "[]"));
 
 const flashcardEl = document.getElementById("flashcard");
 const flashcardFrontEl = document.getElementById("flashcardFront");
 const flashcardBackEl = document.getElementById("flashcardBack");
 const flashcardCountEl = document.getElementById("flashcardCount");
 const flashcardKnownEl = document.getElementById("flashcardKnown");
+const flashcardEmptyEl = document.getElementById("flashcardEmpty");
+const flashcardEmptyTitleEl = document.getElementById("flashcardEmptyTitle");
+const flashcardEmptySubEl = document.getElementById("flashcardEmptySub");
+const flashcardNextBatchEl = document.getElementById("flashcardNextBatch");
+const flashcardActionsEl = document.getElementById("flashcardActions");
+const flashcardKnowActionsEl = document.getElementById("flashcardKnowActions");
+const srsHintEl = document.getElementById("srsHint");
+const dueCountEl = document.getElementById("dueCount");
 
-function saveFlashcardKnown() {
-  localStorage.setItem(FLASHCARD_KNOWN_KEY, JSON.stringify([...flashcardKnown]));
+function buildFlashcardDeck() {
+  flashcardOrder = flashcardMode === "review"
+    ? dueCardIndices().slice(0, REVIEW_BATCH)
+    : shuffle(FLASHCARDS.map((_, i) => i));
+  flashcardIndex = 0;
+  flashcardFlipped = false;
+  flashcardEl.classList.remove("flipped");
+  srsHintEl.textContent = "";
+  renderFlashcard();
+}
+
+function refreshDueCount() {
+  dueCountEl.textContent = String(dueCardIndices().length);
 }
 
 function renderFlashcard() {
+  refreshDueCount();
+  flashcardKnownEl.textContent = `Zvládnuto: ${masteredCardCount()} / ${FLASHCARDS.length}`;
+
+  const empty = flashcardOrder.length === 0;
+  flashcardEmptyEl.hidden = !empty;
+  flashcardEl.parentElement.hidden = empty;
+  flashcardActionsEl.hidden = empty;
+  flashcardKnowActionsEl.hidden = empty;
+  if (empty) {
+    flashcardCountEl.textContent = "0 / 0";
+    // The deck is one batch, so "empty" can still mean more cards are waiting.
+    const remaining = dueCardIndices().length;
+    if (remaining > 0) {
+      flashcardEmptyTitleEl.textContent = "Dávka hotová 👏";
+      flashcardEmptySubEl.textContent = `Zbývá ještě ${remaining} karet k opakování.`;
+      flashcardNextBatchEl.hidden = false;
+    } else {
+      const next = nextDueTime();
+      flashcardEmptyTitleEl.textContent = "Nic k opakování 🎉";
+      flashcardEmptySubEl.textContent = next
+        ? `Další karta bude připravená za ${formatInterval(next - Date.now())}.`
+        : "Přepni na „Všechny karty“ a projdi si je znovu.";
+      flashcardNextBatchEl.hidden = true;
+    }
+    return;
+  }
+
   const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
   flashcardEl.classList.toggle("flipped", flashcardFlipped);
   flashcardFrontEl.innerHTML = `
@@ -197,7 +388,6 @@ function renderFlashcard() {
     <div class="flashcard-english">${card.english}</div>
   `;
   flashcardCountEl.textContent = `${flashcardIndex + 1} / ${flashcardOrder.length}`;
-  flashcardKnownEl.textContent = `Umím: ${flashcardKnown.size}`;
 }
 
 function goToFlashcard(newIndex) {
@@ -243,23 +433,48 @@ document.getElementById("flashcardShuffle").addEventListener("click", () => {
   flashcardOrder = shuffle(flashcardOrder);
   goToFlashcard(0);
 });
-document.getElementById("flashcardKnowBtn").addEventListener("click", () => {
+
+function answerFlashcard(correct) {
+  if (flashcardOrder.length === 0) return;
   const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
-  flashcardKnown.add(flashcardOrder[flashcardIndex]);
-  saveFlashcardKnown();
-  // Feed the shared adaptive stats so the vocab quiz prioritizes unknown words.
-  updateKanaStat(segmentsToPlainText(card.segments), true);
-  goToFlashcard(flashcardIndex + 1);
-});
-document.getElementById("flashcardDontKnow").addEventListener("click", () => {
-  const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
-  flashcardKnown.delete(flashcardOrder[flashcardIndex]);
-  saveFlashcardKnown();
-  updateKanaStat(segmentsToPlainText(card.segments), false);
-  goToFlashcard(flashcardIndex + 1);
+  const key = segmentsToPlainText(card.segments);
+  // Feed the shared adaptive stats so the quiz and typing drills prioritise
+  // words the user doesn't know yet.
+  updateKanaStat(key, correct);
+  const entry = scheduleSrs(key, correct);
+  srsHintEl.textContent = correct
+    ? `✓ ${key} — příští opakování za ${formatInterval(SRS_INTERVALS_MS[entry.box])}`
+    : `✗ ${key} — vrátí se za ${formatInterval(SRS_INTERVALS_MS[0])}`;
+
+  if (flashcardMode === "review") {
+    // The card is scheduled now, so it leaves this session's deck.
+    flashcardOrder.splice(flashcardIndex, 1);
+    if (flashcardOrder.length === 0) {
+      flashcardFlipped = false;
+      flashcardEl.classList.remove("flipped");
+      renderFlashcard();
+      return;
+    }
+    goToFlashcard(flashcardIndex);
+  } else {
+    goToFlashcard(flashcardIndex + 1);
+  }
+}
+
+document.getElementById("flashcardKnowBtn").addEventListener("click", () => answerFlashcard(true));
+document.getElementById("flashcardDontKnow").addEventListener("click", () => answerFlashcard(false));
+flashcardNextBatchEl.addEventListener("click", buildFlashcardDeck);
+
+document.querySelectorAll("#flashcardModeChips .chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll("#flashcardModeChips .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    flashcardMode = chip.dataset.mode;
+    buildFlashcardDeck();
+  });
 });
 
-renderFlashcard();
+buildFlashcardDeck();
 
 // --- Conversations ---
 function renderConversations() {
@@ -464,27 +679,7 @@ function isVocabPair(pair) {
 }
 
 // Adaptive weighting: characters answered wrong more often show up more.
-const KANA_STATS_KEY = "hiragana-kana-stats";
-function loadKanaStats() {
-  try {
-    return JSON.parse(localStorage.getItem(KANA_STATS_KEY)) || {};
-  } catch {
-    return {};
-  }
-}
-function saveKanaStats(stats) {
-  localStorage.setItem(KANA_STATS_KEY, JSON.stringify(stats));
-}
-function updateKanaStat(char, correct) {
-  const stats = loadKanaStats();
-  if (!stats[char]) stats[char] = { correct: 0, wrong: 0 };
-  stats[char][correct ? "correct" : "wrong"]++;
-  saveKanaStats(stats);
-}
-function kanaWeight(char, stats) {
-  const s = stats[char] || { correct: 0, wrong: 0 };
-  return Math.max(0.3, 1 + s.wrong * 2 - s.correct * 0.3);
-}
+// The stats store itself lives in the shared learning-state block above.
 function weightedSample(pool, n) {
   const stats = loadKanaStats();
   const remaining = [...pool];
@@ -574,15 +769,6 @@ let score = 0;
 let quizMode = "normal"; // "normal" | "weak"
 let roundLength = 10;
 const QUESTIONS_PER_ROUND = 10;
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function buildPool() {
   let pool = [];
@@ -715,3 +901,253 @@ document.getElementById("quitQuiz").addEventListener("click", () => {
   quizSetup.hidden = false;
   renderWeakSpots();
 });
+
+// --- Typing drills ---
+// Free-text recall instead of multiple choice. Input is compared after
+// normalising both sides to one romanisation, so Hepburn and kunrei spellings
+// (shi/si, tsu/tu, ja/zya, kōhī/koohii/kouhii…) are all accepted.
+function normalizeRomaji(input) {
+  let s = String(input).toLowerCase().trim();
+  s = s.replace(/[\s'’`\-_.]/g, "");
+  s = s.replace(/ā/g, "aa").replace(/ī/g, "ii").replace(/ū/g, "uu")
+       .replace(/ē/g, "ee").replace(/ō/g, "oo");
+  s = s.replace(/ou/g, "oo");
+  s = s.replace(/sha/g, "sya").replace(/shu/g, "syu").replace(/sho/g, "syo").replace(/shi/g, "si");
+  s = s.replace(/cha/g, "tya").replace(/chu/g, "tyu").replace(/cho/g, "tyo").replace(/chi/g, "ti");
+  s = s.replace(/jya/g, "zya").replace(/jyu/g, "zyu").replace(/jyo/g, "zyo");
+  s = s.replace(/ja/g, "zya").replace(/ju/g, "zyu").replace(/jo/g, "zyo").replace(/ji/g, "zi");
+  s = s.replace(/tsu/g, "tu").replace(/fu/g, "hu");
+  s = s.replace(/nn/g, "n");
+  s = s.replace(/wo/g, "o");
+  return s;
+}
+
+const HIRAGANA_ALL = HIRAGANA_BASIC.concat(HIRAGANA_DAKUTEN, HIRAGANA_YOON);
+
+function typingItemFromKana(pair) {
+  return { key: pair[0], promptHtml: pair[0], sub: "", answer: pair[1], isVocab: false };
+}
+function typingItemFromCard(card) {
+  return {
+    key: segmentsToPlainText(card.segments),
+    promptHtml: segmentsToHtml(card.segments),
+    sub: card.english,
+    answer: card.romaji,
+    isVocab: true,
+  };
+}
+
+let typingCategory = "hiragana";
+let typingScore = 0;
+let typingStreak = 0;
+let typingItem = null;
+let typingAwaitingNext = false;
+
+const typingPromptEl = document.getElementById("typingPrompt");
+const typingSubEl = document.getElementById("typingSub");
+const typingInputEl = document.getElementById("typingInput");
+const typingFeedbackEl = document.getElementById("typingFeedback");
+const typingScoreEl = document.getElementById("typingScore");
+const typingStreakEl = document.getElementById("typingStreak");
+const typingCheckBtn = document.getElementById("typingCheck");
+
+function typingPool() {
+  if (typingCategory === "hiragana") return HIRAGANA_ALL.map(typingItemFromKana);
+  if (typingCategory === "katakana") return KATAKANA_ALL.map(typingItemFromKana);
+  if (typingCategory === "vocab") return FLASHCARDS.map(typingItemFromCard);
+  // Weak spots: whatever the user has actually got wrong, kana and words alike.
+  const stats = loadKanaStats();
+  const all = HIRAGANA_ALL.concat(KATAKANA_ALL).map(typingItemFromKana)
+    .concat(FLASHCARDS.map(typingItemFromCard));
+  return all
+    .filter(item => stats[item.key] && stats[item.key].wrong > 0)
+    .sort((a, b) => kanaWeight(b.key, stats) - kanaWeight(a.key, stats))
+    .slice(0, 30);
+}
+
+function pickTypingItem() {
+  const pool = typingPool();
+  if (pool.length === 0) return null;
+  const candidates = pool.length > 1 && typingItem
+    ? pool.filter(item => item.key !== typingItem.key)
+    : pool;
+  const stats = loadKanaStats();
+  const weights = candidates.map(item => kanaWeight(item.key, stats));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < candidates.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return candidates[i];
+  }
+  return candidates[candidates.length - 1];
+}
+
+function renderTypingQuestion() {
+  typingItem = pickTypingItem();
+  typingAwaitingNext = false;
+  typingFeedbackEl.textContent = "";
+  typingFeedbackEl.className = "typing-feedback";
+  typingInputEl.value = "";
+  typingInputEl.disabled = false;
+  typingCheckBtn.textContent = "Zkontrolovat";
+
+  if (!typingItem) {
+    typingPromptEl.textContent = "🎉";
+    typingSubEl.textContent = "Zatím nemáš žádná slabá místa — zkus jinou kategorii.";
+    typingInputEl.disabled = true;
+    return;
+  }
+  typingPromptEl.innerHTML = typingItem.promptHtml;
+  typingSubEl.textContent = typingItem.sub;
+  typingInputEl.focus();
+}
+
+function checkTypingAnswer() {
+  if (!typingItem) return;
+  if (typingAwaitingNext) {
+    renderTypingQuestion();
+    return;
+  }
+  const given = typingInputEl.value;
+  if (!given.trim()) return;
+  const correct = normalizeRomaji(given) === normalizeRomaji(typingItem.answer);
+
+  updateKanaStat(typingItem.key, correct);
+  // Typing a word is a real review, so it also moves the card's SRS schedule.
+  if (typingItem.isVocab) scheduleSrs(typingItem.key, correct);
+
+  if (correct) {
+    typingScore++;
+    typingStreak++;
+    typingFeedbackEl.textContent = `✓ Správně — ${typingItem.answer}`;
+    typingFeedbackEl.className = "typing-feedback correct";
+    speak(typingItem.key);
+    typingInputEl.disabled = true;
+    setTimeout(renderTypingQuestion, 800);
+  } else {
+    typingStreak = 0;
+    typingFeedbackEl.textContent = `✗ Správně je: ${typingItem.answer}`;
+    typingFeedbackEl.className = "typing-feedback wrong";
+    typingAwaitingNext = true;
+    typingCheckBtn.textContent = "Další";
+  }
+  typingScoreEl.textContent = `Správně: ${typingScore}`;
+  typingStreakEl.textContent = typingStreak >= 3 ? `🔥 ${typingStreak} v řadě` : "";
+}
+
+function startTypingRound() {
+  typingScore = 0;
+  typingStreak = 0;
+  typingScoreEl.textContent = "Správně: 0";
+  typingStreakEl.textContent = "";
+  typingItem = null;
+  renderTypingQuestion();
+}
+
+typingCheckBtn.addEventListener("click", checkTypingAnswer);
+document.getElementById("typingSkip").addEventListener("click", renderTypingQuestion);
+typingInputEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    checkTypingAnswer();
+  }
+});
+document.querySelectorAll("#typingCategoryChips .chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll("#typingCategoryChips .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    typingCategory = chip.dataset.cat;
+    startTypingRound();
+  });
+});
+
+// --- Progress dashboard ---
+function renderProgress() {
+  const stats = loadKanaStats();
+  const srs = loadSrs();
+
+  const groups = [
+    { label: "Hiragana", keys: HIRAGANA_ALL.map(p => p[0]) },
+    { label: "Katakana", keys: KATAKANA_ALL.map(p => p[0]) },
+    { label: "Slovíčka", keys: FLASHCARDS.map(c => segmentsToPlainText(c.segments)) },
+  ];
+
+  document.getElementById("progressBars").innerHTML = groups.map(group => {
+    const total = group.keys.length;
+    let mastered = 0;
+    let learning = 0;
+    group.keys.forEach(key => {
+      const level = itemMastery(key, stats, srs);
+      if (level === 2) mastered++;
+      else if (level === 1) learning++;
+    });
+    const masteredPct = (mastered / total) * 100;
+    const learningPct = (learning / total) * 100;
+    return `
+      <div class="progress-row">
+        <div class="progress-row-head">
+          <span class="progress-label">${group.label}</span>
+          <span class="progress-value">${mastered} / ${total}</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill mastered" style="width:${masteredPct}%"></div>
+          <div class="progress-fill learning" style="width:${learningPct}%"></div>
+        </div>
+        <div class="progress-legend">${mastered} zvládnuto · ${learning} rozpracováno · ${total - mastered - learning} nezačato</div>
+      </div>
+    `;
+  }).join("");
+
+  const due = dueCardIndices().length;
+  const next = nextDueTime();
+  const scheduled = FLASHCARDS.length - due;
+  document.getElementById("progressSrs").innerHTML = `
+    <div class="srs-stat">
+      <span class="srs-stat-value">${due}</span>
+      <span class="srs-stat-label">karet k opakování</span>
+    </div>
+    <div class="srs-stat">
+      <span class="srs-stat-value">${scheduled}</span>
+      <span class="srs-stat-label">naplánováno na později</span>
+    </div>
+    <div class="srs-stat">
+      <span class="srs-stat-value">${next ? formatInterval(next - Date.now()) : "—"}</span>
+      <span class="srs-stat-label">další opakování</span>
+    </div>
+  `;
+
+  const activity = loadActivity();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    const key = date.toISOString().slice(0, 10);
+    days.push({ key, count: activity[key] || 0, label: ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][date.getDay()] });
+  }
+  const max = Math.max(1, ...days.map(d => d.count));
+  const weekTotal = days.reduce((sum, d) => sum + d.count, 0);
+  document.getElementById("progressActivity").innerHTML = `
+    <div class="activity-chart">
+      ${days.map(d => `
+        <div class="activity-day">
+          <div class="activity-bar-wrap">
+            <div class="activity-bar" style="height:${(d.count / max) * 100}%" title="${d.count} odpovědí"></div>
+          </div>
+          <span class="activity-label">${d.label}</span>
+        </div>
+      `).join("")}
+    </div>
+    <p class="activity-summary">Dnes: <strong>${days[days.length - 1].count}</strong> odpovědí · za posledních 7 dní: <strong>${weekTotal}</strong></p>
+  `;
+
+  const weak = Object.entries(stats)
+    .filter(([, s]) => s.wrong > 0)
+    .sort((a, b) => kanaWeight(b[0], stats) - kanaWeight(a[0], stats))
+    .slice(0, 12);
+  document.getElementById("progressWeak").innerHTML = weak.length === 0
+    ? `<p class="hint">Zatím žádné chyby — jen tak dál!</p>`
+    : `<div class="weak-spots">${weak.map(([key, s]) =>
+        `<span class="weak-chip" title="${s.correct} správně / ${s.wrong} chybně">${key}</span>`
+      ).join("")}</div>`;
+}
+renderProgress();
+startTypingRound();

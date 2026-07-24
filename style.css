@@ -426,6 +426,218 @@ h2 {
   color: var(--correct);
 }
 
+.flashcard-empty {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  margin-bottom: 1.2rem;
+}
+
+.flashcard-empty-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+
+.flashcard-empty-sub {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.srs-hint {
+  text-align: center;
+  margin-top: 1rem;
+  min-height: 1.2rem;
+}
+
+/* Typing drills */
+.typing-progress {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.typing-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.typing-prompt {
+  font-size: 3.5rem;
+  line-height: 1.6;
+  margin-bottom: 0.3rem;
+}
+
+.typing-prompt ruby {
+  ruby-align: center;
+}
+
+.typing-prompt rt {
+  font-size: 1rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.typing-sub {
+  color: var(--text-muted);
+  margin-bottom: 1.2rem;
+  min-height: 1.2rem;
+}
+
+.typing-input {
+  width: 100%;
+  max-width: 320px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 1.4rem;
+  text-align: center;
+  padding: 0.7rem 1rem;
+  font-family: inherit;
+}
+
+.typing-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.typing-feedback {
+  min-height: 1.6rem;
+  margin: 0.9rem 0;
+  font-weight: 600;
+}
+
+.typing-feedback.correct { color: var(--correct); }
+.typing-feedback.wrong { color: var(--wrong); }
+
+.typing-actions {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Progress dashboard */
+.progress-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.progress-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.4rem;
+}
+
+.progress-label {
+  font-weight: 600;
+}
+
+.progress-value {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.progress-bar {
+  display: flex;
+  height: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill.mastered { background: var(--correct); }
+.progress-fill.learning { background: var(--accent); opacity: 0.5; }
+
+.progress-legend {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.progress-srs {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.srs-stat {
+  flex: 1;
+  min-width: 130px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+}
+
+.srs-stat-value {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.srs-stat-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.activity-chart {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  height: 120px;
+}
+
+.activity-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  height: 100%;
+}
+
+.activity-bar-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.activity-bar {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+}
+
+.activity-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.activity-summary {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0.7rem 0 0;
+}
+
 /* Conversations */
 
 .conversation-list {

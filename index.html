@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Hiragana">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <header class="topbar">
@@ -36,7 +36,9 @@
   <button class="tab-btn" data-tab="conversations">Konverzace</button>
   <button class="tab-btn" data-tab="grammar">Gramatika</button>
   <button class="tab-btn" data-tab="builder">Skládání vět</button>
+  <button class="tab-btn" data-tab="typing">Psaní</button>
   <button class="tab-btn" data-tab="quiz">Kvíz</button>
+  <button class="tab-btn" data-tab="progress">Pokrok</button>
 </nav>
 
 <main>
@@ -70,9 +72,13 @@
 
   <section id="flashcards" class="tab-panel">
     <p class="hint">Klikni na kartičku a otoč ji — vpředu je obrázek, vzadu japonské slovo.</p>
+    <div class="chip-group" id="flashcardModeChips">
+      <button class="chip active" data-mode="review">🔁 Opakování (<span id="dueCount">0</span>)</button>
+      <button class="chip" data-mode="all">Všechny karty</button>
+    </div>
     <div class="flashcard-progress">
-      <span id="flashcardCount">1 / 16</span>
-      <span id="flashcardKnown">Umím: 0</span>
+      <span id="flashcardCount">1 / 1</span>
+      <span id="flashcardKnown">Zvládnuto: 0</span>
     </div>
     <div class="flashcard-stage">
       <div class="flashcard" id="flashcard">
@@ -80,15 +86,21 @@
         <div class="flashcard-face flashcard-back" id="flashcardBack"></div>
       </div>
     </div>
-    <div class="flashcard-actions">
+    <div class="flashcard-empty" id="flashcardEmpty" hidden>
+      <p class="flashcard-empty-title" id="flashcardEmptyTitle">Nic k opakování 🎉</p>
+      <p class="flashcard-empty-sub" id="flashcardEmptySub"></p>
+      <button id="flashcardNextBatch" class="primary-btn" hidden>Další dávka</button>
+    </div>
+    <div class="flashcard-actions" id="flashcardActions">
       <button id="flashcardPrev" class="secondary-btn">◀ Předchozí</button>
       <button id="flashcardShuffle" class="secondary-btn">🔀 Zamíchat</button>
       <button id="flashcardNext" class="secondary-btn">Další ▶</button>
     </div>
-    <div class="flashcard-know-actions">
+    <div class="flashcard-know-actions" id="flashcardKnowActions">
       <button id="flashcardDontKnow" class="know-btn dont-know-btn">✗ Ještě neumím</button>
       <button id="flashcardKnowBtn" class="know-btn know-btn-yes">✓ Umím</button>
     </div>
+    <p class="hint srs-hint" id="srsHint"></p>
   </section>
 
   <section id="conversations" class="tab-panel">
@@ -210,6 +222,49 @@
     </div>
   </section>
 
+  <section id="typing" class="tab-panel">
+    <p class="hint">Napiš výslovnost latinkou a potvrď Enterem. Aktivní vybavování si pamatuješ líp než klikání z možností.</p>
+    <div class="setup-group">
+      <label>Co procvičovat</label>
+      <div class="chip-group" id="typingCategoryChips">
+        <button class="chip active" data-cat="hiragana">Hiragana</button>
+        <button class="chip" data-cat="katakana">Katakana</button>
+        <button class="chip" data-cat="vocab">Slovíčka</button>
+        <button class="chip" data-cat="weak">🎯 Slabá místa</button>
+      </div>
+    </div>
+    <div class="typing-progress">
+      <span id="typingScore">Správně: 0</span>
+      <span id="typingStreak"></span>
+    </div>
+    <div class="typing-card">
+      <div class="typing-prompt" id="typingPrompt">?</div>
+      <div class="typing-sub" id="typingSub"></div>
+      <input type="text" id="typingInput" class="typing-input" autocomplete="off"
+             autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="např. shi">
+      <div class="typing-feedback" id="typingFeedback"></div>
+      <div class="typing-actions">
+        <button id="typingCheck" class="primary-btn">Zkontrolovat</button>
+        <button id="typingSkip" class="secondary-btn">Přeskočit</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="progress" class="tab-panel">
+    <h2>Tvůj pokrok</h2>
+    <p class="hint">Počítá se ze všech režimů dohromady — kvízu, psaní i kartiček.</p>
+    <div id="progressBars" class="progress-bars"></div>
+
+    <h2>Opakování</h2>
+    <div id="progressSrs" class="progress-srs"></div>
+
+    <h2>Aktivita</h2>
+    <div id="progressActivity" class="progress-activity"></div>
+
+    <h2>Slabá místa</h2>
+    <div id="progressWeak" class="progress-weak"></div>
+  </section>
+
   <section id="quiz" class="tab-panel">
     <div class="quiz-setup" id="quizSetup">
       <h2>Nastavení kvízu</h2>
@@ -256,7 +311,7 @@
   </section>
 </main>
 
-<script src="data.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="data.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
