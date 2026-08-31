@@ -378,8 +378,13 @@ function renderFlashcard() {
 
   const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
   flashcardEl.classList.toggle("flipped", flashcardFlipped);
+  // Abstract words (verbs, adjectives…) have no evocative emoji, so their
+  // front shows the English meaning as the prompt instead of a picture.
+  const frontMain = card.emoji
+    ? `<div class="flashcard-emoji">${card.emoji}</div>`
+    : `<div class="flashcard-front-text">${card.english}</div>`;
   flashcardFrontEl.innerHTML = `
-    <div class="flashcard-emoji">${card.emoji}</div>
+    ${frontMain}
     <div class="flashcard-hint-text">Klikni pro otočení</div>
   `;
   flashcardBackEl.innerHTML = `
