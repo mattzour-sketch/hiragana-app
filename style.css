@@ -401,6 +401,77 @@ h2 {
   color: var(--text-muted);
 }
 
+/* Example sentence on the back of a flashcard */
+.flashcard-example {
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+.flashcard-example-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.flashcard-example-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.flashcard-example-jp {
+  font-size: 1.15rem;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+
+.gloss-token {
+  cursor: pointer;
+  border-bottom: 1px dotted var(--accent);
+}
+
+.gloss-token.active {
+  background: var(--accent-soft);
+  border-radius: 4px;
+}
+
+.flashcard-example-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+}
+
+.flashcard-gloss-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.flashcard-gloss-bar .gloss-romaji {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Fixed-height card: let the back scroll and keep the word centred even when the
+   example makes the content taller than the 320px face. */
+.flashcard-back {
+  overflow-y: auto;
+  justify-content: flex-start;
+}
+
+.flashcard-back .flashcard-word {
+  margin-top: auto;
+}
+
+.flashcard-back .flashcard-example {
+  margin-bottom: auto;
+}
+
 .flashcard-actions {
   display: flex;
   gap: 0.7rem;

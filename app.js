@@ -272,10 +272,13 @@ renderChart("katakanaDakutenChart", KATAKANA_DAKUTEN_ROWS, false);
 renderChart("katakanaYoonChart", KATAKANA_YOON_ROWS, true);
 
 // --- Sentences ---
+// A segment with `hl` (target word on a flashcard) is wrapped in <strong>.
+// Existing SENTENCES/CONVERSATIONS data has no `hl`, so they render unchanged.
 function segmentsToHtml(segments) {
-  return segments.map(seg =>
-    seg.f ? `<ruby>${seg.t}<rt>${seg.f}</rt></ruby>` : seg.t
-  ).join("");
+  return segments.map(seg => {
+    const inner = seg.f ? `<ruby>${seg.t}<rt>${seg.f}</rt></ruby>` : seg.t;
+    return seg.hl ? `<strong>${inner}</strong>` : inner;
+  }).join("");
 }
 
 function segmentsToPlainText(segments) {
@@ -318,6 +321,51 @@ let flashcardMode = "review";
 let flashcardOrder = [];
 let flashcardIndex = 0;
 let flashcardFlipped = false;
+// Session-wide "show example sentence" choice: once the user reveals a sentence
+// it stays revealed on every following card until they hide it again. In-memory
+// only (no localStorage), so a page reload resets it.
+let flashcardExampleRevealed = false;
+
+// Reading + meaning shown when a word in the example sentence is clicked.
+// Priority: target word (hl) → gloss from the card; particle → PARTICLE_GLOSS;
+// otherwise the token's manual `g`; else not clickable.
+function glossForToken(seg, card) {
+  if (seg.hl) return { romaji: card.romaji, text: card.english };
+  if (PARTICLE_GLOSS[seg.t]) return PARTICLE_GLOSS[seg.t];
+  if (seg.g) return seg.g;
+  return null;
+}
+
+// Dedicated renderer for the on-card example sentence: bolds the target word and
+// wraps glossable tokens in a clickable span carrying only their segment index
+// (gloss texts stay in JS, never injected into an attribute).
+function exampleSegmentsToHtml(ex, card) {
+  return ex.segments.map((seg, i) => {
+    const inner = seg.f ? `<ruby>${seg.t}<rt>${seg.f}</rt></ruby>` : seg.t;
+    const body = seg.hl ? `<strong>${inner}</strong>` : inner;
+    return glossForToken(seg, card)
+      ? `<span class="gloss-token" data-seg="${i}">${body}</span>`
+      : body;
+  }).join("");
+}
+
+function hideGloss(root) {
+  const bar = root.querySelector(".flashcard-gloss-bar");
+  if (bar) { bar.hidden = true; bar.dataset.seg = ""; }
+  root.querySelectorAll(".gloss-token.active").forEach(t => t.classList.remove("active"));
+}
+
+function toggleGloss(root, i, gloss, tok) {
+  if (!gloss) return;
+  const bar = root.querySelector(".flashcard-gloss-bar");
+  if (!bar.hidden && bar.dataset.seg === String(i)) { hideGloss(root); return; }
+  root.querySelectorAll(".gloss-token.active").forEach(t => t.classList.remove("active"));
+  tok.classList.add("active");
+  bar.innerHTML = `<span class="gloss-romaji">${gloss.romaji}</span> ` +
+                  `<span class="gloss-text">${gloss.text}</span>`;
+  bar.hidden = false;
+  bar.dataset.seg = String(i);
+}
 
 const flashcardEl = document.getElementById("flashcard");
 const flashcardFrontEl = document.getElementById("flashcardFront");
@@ -387,11 +435,68 @@ function renderFlashcard() {
     ${frontMain}
     <div class="flashcard-hint-text">Klikni pro otočení</div>
   `;
+  // The example block is only rendered for cards that have one, so the app keeps
+  // working while sentences are being filled in batch by batch.
+  const ex = card.example;
+  const exampleHtml = ex ? `
+    <div class="flashcard-example">
+      <div class="flashcard-example-actions">
+        <button type="button" class="reveal-btn fc-example-reveal">${
+          flashcardExampleRevealed ? "Skrýt větu" : "Ukázat větu"}</button>
+      </div>
+      <div class="sentence-reveal fc-example-reveal-box${flashcardExampleRevealed ? " visible" : ""}">
+        <div class="flashcard-example-line">
+          <span class="flashcard-example-jp">${exampleSegmentsToHtml(ex, card)}</span>
+          <button type="button" class="speak-btn fc-example-speak" title="Přehrát větu">🔊</button>
+        </div>
+        <div class="sentence-romaji">${ex.romaji}</div>
+        <div class="sentence-translation">${ex.english}</div>
+        <div class="flashcard-example-note">tučně = hledané slovo (může být i v jiném tvaru)</div>
+        <div class="flashcard-gloss-bar" hidden></div>
+      </div>
+    </div>` : "";
   flashcardBackEl.innerHTML = `
     <div class="flashcard-word">${segmentsToHtml(card.segments)}</div>
     <div class="flashcard-romaji">${card.romaji}</div>
     <div class="flashcard-english">${card.english}</div>
-  `;
+    ${exampleHtml}`;
+
+  // innerHTML is rebuilt on every render, so listeners are (re)bound to the fresh
+  // nodes here; the old nodes and their listeners are discarded with them.
+  // stopPropagation keeps these clicks from reaching the flip handler on #flashcard.
+  if (ex) {
+    const revealBtn = flashcardBackEl.querySelector(".fc-example-reveal");
+    const revealBox = flashcardBackEl.querySelector(".fc-example-reveal-box");
+    revealBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      flashcardExampleRevealed = revealBox.classList.toggle("visible");
+      revealBtn.textContent = flashcardExampleRevealed ? "Skrýt větu" : "Ukázat větu";
+      if (!flashcardExampleRevealed) hideGloss(flashcardBackEl);
+    });
+    flashcardBackEl.querySelector(".fc-example-speak").addEventListener("click", (e) => {
+      e.stopPropagation();
+      speak(segmentsToPlainText(ex.segments));
+    });
+    // Any click inside the revealed sentence box stays on the card — it never
+    // reaches the flip handler on #flashcard, so reading the sentence (tapping
+    // plain text, romaji, translation or the note) can't accidentally flip the
+    // card. A gloss word toggles its gloss; anything else closes an open gloss.
+    // (The 🔊 and gloss-bar have their own stopPropagation handlers, so their
+    // clicks never bubble here.)
+    revealBox.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const tok = e.target.closest(".gloss-token");
+      if (tok) {
+        const i = +tok.dataset.seg;
+        toggleGloss(flashcardBackEl, i, glossForToken(ex.segments[i], card), tok);
+      } else {
+        hideGloss(flashcardBackEl);
+      }
+    });
+    flashcardBackEl.querySelector(".flashcard-gloss-bar")
+      .addEventListener("click", (e) => e.stopPropagation());
+  }
+
   flashcardCountEl.textContent = `${flashcardIndex + 1} / ${flashcardOrder.length}`;
 }
 
@@ -424,6 +529,10 @@ function goToFlashcard(newIndex) {
 }
 
 flashcardEl.addEventListener("click", () => {
+  // A click into the empty space of the card while the gloss bar is open just
+  // closes the gloss — it does not flip the card.
+  const bar = flashcardBackEl.querySelector(".flashcard-gloss-bar");
+  if (bar && !bar.hidden) { hideGloss(flashcardBackEl); return; }
   flashcardFlipped = !flashcardFlipped;
   flashcardEl.classList.toggle("flipped", flashcardFlipped);
   if (flashcardFlipped) {
