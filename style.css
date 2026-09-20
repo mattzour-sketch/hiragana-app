@@ -1,30 +1,38 @@
+/* Aizome — indigo (藍) ink on washi paper, with a vermilion (朱) reading accent.
+   --accent carries the brand/interaction; --reading marks kana readings only. */
 :root {
-  --bg: #f7f5f2;
-  --surface: #ffffff;
-  --text: #24211d;
-  --text-muted: #6b655c;
-  --accent: #c0453a;
-  --accent-soft: #f0dcda;
-  --border: #e4ded6;
-  --correct: #3a7d44;
-  --correct-bg: #e3f2e4;
-  --wrong: #c0453a;
-  --wrong-bg: #fbe4e2;
+  --bg: #eef0eb;
+  --surface: #f8f8f4;
+  --text: #1a1d1f;
+  --text-muted: #6c716c;
+  --accent: #29386e;
+  --accent-soft: #dde2f0;
+  --on-accent: #ffffff;
+  --reading: #c0432c;
+  --border: #d7d9cf;
+  --grid-guide: rgba(41, 56, 110, 0.07);
+  --correct: #2e7d51;
+  --correct-bg: #dcebe0;
+  --wrong: #c0432c;
+  --wrong-bg: #f1ded8;
   --radius: 12px;
 }
 
 :root[data-theme="dark"] {
-  --bg: #1c1a17;
-  --surface: #26231f;
-  --text: #ede8e1;
-  --text-muted: #a89e91;
-  --accent: #e0685b;
-  --accent-soft: #3a2926;
-  --border: #3a352e;
-  --correct: #6bc46d;
-  --correct-bg: #223625;
-  --wrong: #e0685b;
-  --wrong-bg: #3a2523;
+  --bg: #14161c;
+  --surface: #1d2027;
+  --text: #e9eae4;
+  --text-muted: #9ba0a6;
+  --accent: #93a6e6;
+  --accent-soft: #262c3d;
+  --on-accent: #14161c;
+  --reading: #f0765b;
+  --border: #2e323c;
+  --grid-guide: rgba(147, 166, 230, 0.10);
+  --correct: #64c08a;
+  --correct-bg: #1f3328;
+  --wrong: #f0765b;
+  --wrong-bg: #3a2622;
 }
 
 * { box-sizing: border-box; }
@@ -35,7 +43,7 @@ html, body {
 
 body {
   margin: 0;
-  font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -53,14 +61,20 @@ body {
 
 .topbar h1 {
   margin: 0;
-  font-size: 1.6rem;
+  font-family: "Zen Old Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
 }
 
 .subtitle {
-  font-size: 1rem;
+  font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  font-size: 0.95rem;
   color: var(--text-muted);
   font-weight: normal;
-  margin-left: 0.5rem;
+  letter-spacing: 0;
+  margin-left: 0.55rem;
 }
 
 .topbar-actions {
@@ -114,7 +128,7 @@ body {
 
 .install-btn {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: 999px;
   padding: 0.5rem 1rem;
@@ -191,19 +205,23 @@ h2 {
   grid-template-columns: repeat(3, 1fr);
 }
 
+/* Genkō-yōshi manuscript squares: a faint center cross guides where the kana sits. */
 .kana-cell {
-  background: var(--surface);
+  background:
+    linear-gradient(var(--grid-guide), var(--grid-guide)) center / 100% 1px no-repeat,
+    linear-gradient(var(--grid-guide), var(--grid-guide)) center / 1px 100% no-repeat,
+    var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 3px;
   padding: 0.6rem 0.3rem;
   text-align: center;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
 .kana-cell:hover {
-  background: var(--accent-soft);
-  transform: translateY(-2px);
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .kana-cell.empty {
@@ -751,7 +769,7 @@ h2 {
   height: 1.8rem;
   border-radius: 50%;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   font-size: 0.8rem;
   font-weight: 700;
   display: flex;
@@ -1058,7 +1076,7 @@ h2 {
 
 .practice-weak-btn {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: 999px;
   padding: 0.4rem 0.9rem;
@@ -1102,12 +1120,12 @@ h2 {
 .chip.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .primary-btn {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius);
   padding: 0.75rem 1.5rem;
@@ -1158,7 +1176,7 @@ h2 {
 
 .play-prompt-btn {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: 50%;
   width: 4.5rem;
@@ -1212,3 +1230,19 @@ h2 {
 }
 
 .quiz-result h2 { margin-top: 0; }
+
+/* Kana readings — furigana over kanji and romaji lines — carry the vermilion
+   seal accent (朱), like a teacher's reading marks, while indigo stays the brand.
+   Same specificity as the per-context rules above, but later, so these win. */
+.sentence-text rt,
+.flashcard-back .flashcard-word rt,
+.typing-prompt rt,
+.chat-text rt,
+.word-chip rt,
+.quiz-prompt rt,
+.sentence-romaji,
+.flashcard-back .flashcard-romaji,
+.flashcard-gloss-bar .gloss-romaji,
+.chat-romaji {
+  color: var(--reading);
+}
