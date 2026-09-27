@@ -48,7 +48,7 @@ const lcp = (a, b) => { let n = 0; while (n < a.length && n < b.length && a[n] =
 // Dávky vět `examples` (spec: docs/specs/slovo-dne.md). Karty s indexem menším
 // než tato hranice už `examples` mít MUSÍ. Po každé dávce se posune; po dávce 8
 // (= FLASHCARDS.length) platí „každá z 352 karet má 2 věty“.
-const EXAMPLES_DONE_UNTIL = 38;
+const EXAMPLES_DONE_UNTIL = 81;
 
 // Validátor jedné věty (example i každá položka examples) – vrací pole chyb.
 function validateSentence(e, c) {
@@ -248,12 +248,27 @@ test("homonyma sedí na význam karty (věta obsahuje cíl + správný překlad)
 
 test("homonyma v examples: obě nové věty nesou význam karty v překladu", () => {
   // [zápis slova, english karty, regex který MUSÍ být v překladu každé nové věty]
-  // Rozšiřovat s každou dávkou (dávka 2: 鼻/nose, 歯/tooth, 赤ちゃん/baby …).
+  // Rozšiřovat s každou dávkou.
   const cases = [
-    ["花", "flower", /flower/],        // ne 鼻 (nos)
-    ["かえる", "frog", /frog/],        // ne 帰る (vrátit se domů)
-    ["はち", "bee", /\bbees?\b/],      // ne 八 (osm)
-    ["くも", "spider", /spider/],      // ne 雲 (mrak)
+    // dávka 1
+    ["花", "flower", /flower/],                     // ne 鼻 (nos)
+    ["かえる", "frog", /frog/],                     // ne 帰る (vrátit se domů)
+    ["はち", "bee", /\bbees?\b/],                   // ne 八 (osm)
+    ["くも", "spider", /spider/],                   // ne 雲 (mrak)
+    // dávka 2
+    ["米", "rice (uncooked)", /\brice\b/],          // ne 米 = Amerika (米国)
+    ["ご飯", "rice / meal", /\b(meal|rice)\b/],
+    ["赤ちゃん", "baby", /\bbab(y|ies)\b/],          // ne 赤 (červená)
+    ["目", "eye", /\beyes?\b/],
+    ["耳", "ear", /\bears?\b/],
+    ["鼻", "nose", /\bnose\b/],                     // ne 花 (květina)
+    ["口", "mouth", /\bmouths?\b/],
+    ["手", "hand", /\bhands?\b/],                   // ne částice て
+    ["足", "foot / leg", /\b(foot|feet|legs?)\b/],  // ne 足りる (stačit)
+    ["指", "finger", /\bfingers?\b/],
+    ["頭", "head", /\bhead\b/],
+    ["心", "heart (feeling)", /\bheart\b/],
+    ["歯", "tooth", /\b(tooth|teeth)\b/],           // ne částice は
   ];
   for (const [word, english, re] of cases) {
     const c = FLASHCARDS.find((x) => wordOf(x.segments) === word && x.english === english);
