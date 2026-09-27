@@ -1112,7 +1112,7 @@ const FLASHCARDS = [
   { emoji: "🟢", segments: [{ t: "緑", f: "みどり" }], romaji: "midori", english: "green",
     example: { segments: [{ t: "緑", f: "みどり", hl: true }, { t: "が" }, { t: "好", f: "す" }, { t: "きです" }], romaji: "midori ga suki desu", english: "I like green." },
     examples: [
-      { segments: [{ t: "この", g: { romaji: "kono", text: "tento" } }, { t: "町", f: "まち", g: { romaji: "machi", text: "město" } }, { t: "は" }, { t: "緑", f: "みどり", hl: true }, { t: "が" }, { t: "多", f: "おお", g: { romaji: "ooi", text: "hodně" } }, { t: "いです" }], romaji: "kono machi wa midori ga ooi desu", english: "This town has a lot of green." },
+      { segments: [{ t: "この", g: { romaji: "kono", text: "tento" } }, { t: "町", f: "まち", g: { romaji: "machi", text: "město" } }, { t: "は" }, { t: "緑", f: "みどり", hl: true }, { t: "が" }, { t: "多", f: "おお", g: { romaji: "ooi", text: "hodně" } }, { t: "いです" }], romaji: "kono machi wa midori ga ooi desu", english: "This town has a lot of greenery." },
       { segments: [{ t: "緑", f: "みどり", hl: true }, { t: "色", f: "いろ", g: { romaji: "iro", text: "barva" } }, { t: "の" }, { t: "かばん", g: { romaji: "kaban", text: "taška" } }, { t: "は" }, { t: "いくら", g: { romaji: "ikura", text: "kolik (stojí)" } }, { t: "です" }, { t: "か" }], romaji: "midoriiro no kaban wa ikura desu ka", english: "How much is the green bag?" },
     ] },
   { emoji: "⚪", segments: [{ t: "白", f: "しろ" }], romaji: "shiro", english: "white",
@@ -1181,7 +1181,7 @@ const FLASHCARDS = [
     example: { segments: [{ t: "答", f: "こた" }, { t: "え" }, { t: "は" }, { t: "七", f: "なな", hl: true }, { t: "です" }], romaji: "kotae wa nana desu", english: "The answer is seven." },
     examples: [
       { segments: [{ t: "虹", f: "にじ", g: { romaji: "niji", text: "duha" } }, { t: "は" }, { t: "七", f: "なな", hl: true }, { t: "色", f: "いろ", g: { romaji: "iro", text: "barva" } }, { t: "です" }], romaji: "niji wa nanairo desu", english: "A rainbow has seven colors." },
-      { segments: [{ t: "七", f: "なな", hl: true }, { t: "人", f: "にん", g: { romaji: "nin", text: "(počítadlo lidí)" } }, { t: "で" }, { t: "食事", f: "しょくじ", g: { romaji: "shokuji", text: "jídlo" } }, { t: "を" }, { t: "しました", g: { romaji: "shimashita", text: "udělal(a) jsem" } }], romaji: "nananin de shokuji o shimashita", english: "Seven of us had a meal together." },
+      { segments: [{ t: "りんご", g: { romaji: "ringo", text: "jablko" } }, { t: "を" }, { t: "七", f: "なな", hl: true }, { t: "つ", g: { romaji: "tsu", text: "(počítadlo věcí)" } }, { t: "買", f: "か", g: { romaji: "kau", text: "koupit" } }, { t: "いました" }], romaji: "ringo o nanatsu kaimashita", english: "I bought seven apples." },
     ] },
   { emoji: "8️⃣", segments: [{ t: "八", f: "はち" }], romaji: "hachi", english: "eight",
     example: { segments: [{ t: "八", f: "はち", hl: true }, { t: "時", f: "じ", g: { romaji: "ji", text: "hodina (počítadlo)" } }, { t: "です" }], romaji: "hachiji desu", english: "It is eight o'clock." },
@@ -1230,7 +1230,7 @@ const FLASHCARDS = [
   { emoji: "☀️", segments: [{ t: "昼", f: "ひる" }], romaji: "hiru", english: "noon / daytime",
     example: { segments: [{ t: "昼", f: "ひる", hl: true }, { t: "に" }, { t: "ご飯", f: "ごはん", g: { romaji: "gohan", text: "jídlo / rýže" } }, { t: "を" }, { t: "食", f: "た" }, { t: "べます" }], romaji: "hiru ni gohan o tabemasu", english: "I eat lunch at noon." },
     examples: [
-      { segments: [{ t: "昼", f: "ひる", hl: true }, { t: "ご飯", f: "ごはん", g: { romaji: "gohan", text: "jídlo" } }, { t: "は" }, { t: "もう", g: { romaji: "mou", text: "už" } }, { t: "食", f: "た", g: { romaji: "taberu", text: "jíst" } }, { t: "べました" }, { t: "か" }], romaji: "hirugohan wa mou tabemashita ka", english: "Have you had lunch yet?" },
+      { segments: [{ t: "昼", f: "ひる", hl: true }, { t: "は" }, { t: "暑", f: "あつ", g: { romaji: "atsui", text: "horký" } }, { t: "いです" }], romaji: "hiru wa atsui desu", english: "It is hot during the day." },
       { segments: [{ t: "昼", f: "ひる", hl: true }, { t: "まで" }, { t: "寝", f: "ね", g: { romaji: "neru", text: "spát" } }, { t: "ました" }], romaji: "hiru made nemashita", english: "I slept until noon." },
     ] },
   { emoji: "🌙", segments: [{ t: "夜", f: "よる" }], romaji: "yoru", english: "night",
@@ -1922,7 +1922,7 @@ const PARTICLE_GLOSS = {
   "が": { romaji: "ga", text: "podmět (nová informace)" },
   "を": { romaji: "o",  text: "předmět slovesa" },
   "に": { romaji: "ni", text: "cíl / místo / čas (kam, kdy, komu)" },
-  "で": { romaji: "de", text: "místo děje / prostředek" },
+  "で": { romaji: "de", text: "místo děje / prostředek / příčina" },
   "の": { romaji: "no", text: "přivlastnění (X-ovo Y)" },
   "か": { romaji: "ka", text: "otázka (na konci věty)" },
   "へ": { romaji: "e",  text: "směr (kam)" },
