@@ -48,7 +48,7 @@ const lcp = (a, b) => { let n = 0; while (n < a.length && n < b.length && a[n] =
 // Dávky vět `examples` (spec: docs/specs/slovo-dne.md). Karty s indexem menším
 // než tato hranice už `examples` mít MUSÍ. Po každé dávce se posune; po dávce 8
 // (= FLASHCARDS.length) platí „každá z 352 karet má 2 věty“.
-const EXAMPLES_DONE_UNTIL = 81;
+const EXAMPLES_DONE_UNTIL = 127;
 
 // Validátor jedné věty (example i každá položka examples) – vrací pole chyb.
 function validateSentence(e, c) {
@@ -269,6 +269,14 @@ test("homonyma v examples: obě nové věty nesou význam karty v překladu", ()
     ["頭", "head", /\bhead\b/],
     ["心", "heart (feeling)", /\bheart\b/],
     ["歯", "tooth", /\b(tooth|teeth)\b/],           // ne částice は
+    // dávka 3
+    ["オレンジ", "orange (color)", /\borange\b/],
+    ["八", "eight", /\beight\b/],                   // ne はち (včela)
+    ["曇り", "cloudy", /\bcloud(y|s)?\b/],          // ne くも (pavouk / mrak)
+    ["風", "wind", /\bwind\b/],                     // ne 風邪 (nachlazení)
+    ["空", "sky", /\bsky\b/],                       // ne 空 (から, prázdný)
+    ["月", "moon", /\bmoon\b/],                     // ne 月 がつ (měsíc v datu)
+    ["木", "tree", /\btrees?\b/],                   // ne 木曜日 (čtvrtek)
   ];
   for (const [word, english, re] of cases) {
     const c = FLASHCARDS.find((x) => wordOf(x.segments) === word && x.english === english);
