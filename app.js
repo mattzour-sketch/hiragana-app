@@ -37,18 +37,19 @@ themeToggle.addEventListener("click", () => {
 });
 
 // --- Tabs ---
+// Also called from in-app links (word of the day ↔ flashcards).
+function showTab(id) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === id));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === id));
+  // These panels depend on stored progress that other tabs change, and on
+  // wall-clock time (SRS due dates, the local day), so they refresh on every visit.
+  if (id === "progress") renderProgress();
+  if (id === "flashcards") buildFlashcardDeck();
+  if (id === "typing") startTypingRound();
+  if (id === "wordOfDay") renderWordOfDay();
+}
 document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(btn.dataset.tab).classList.add("active");
-    // These panels depend on stored progress that other tabs change, and on
-    // wall-clock time (SRS due dates), so they refresh on every visit.
-    if (btn.dataset.tab === "progress") renderProgress();
-    if (btn.dataset.tab === "flashcards") buildFlashcardDeck();
-    if (btn.dataset.tab === "typing") startTypingRound();
-  });
+  btn.addEventListener("click", () => showTab(btn.dataset.tab));
 });
 
 // --- Speech ---
@@ -171,17 +172,53 @@ function scheduleSrs(key, correct) {
   saveSrs(srs);
   return srs[key];
 }
-// Cards never reviewed count as due, so a fresh deck starts fully available.
-function dueCardIndices() {
-  const srs = loadSrs();
-  const now = Date.now();
+// A word is "introduced" once it has an SRS entry. Only introduced words can be
+// due: a word the user has never started (no entry) is not a review.
+// Pure (no DOM/localStorage) so it can be unit-tested.
+function dueIndicesFrom(cards, srs, now) {
   const due = [];
-  FLASHCARDS.forEach((card, i) => {
+  cards.forEach((card, i) => {
     const entry = srs[segmentsToPlainText(card.segments)];
-    if (!entry || entry.due <= now) due.push({ i, due: entry ? entry.due : 0 });
+    if (entry && entry.due <= now) due.push({ i, due: entry.due });
   });
   due.sort((a, b) => a.due - b.due);
   return due.map(d => d.i);
+}
+// Puts a new word into box 0 (first review after SRS_INTERVALS_MS[0]). Never
+// overwrites an existing entry; returns whether an entry was added.
+function introduceInSrs(srs, key, now) {
+  if (srs[key]) return false;
+  srs[key] = { box: 0, due: now + SRS_INTERVALS_MS[0] };
+  return true;
+}
+function firstUnintroducedIndex(cards, srs) {
+  return cards.findIndex(card => !srs[segmentsToPlainText(card.segments)]);
+}
+// Review queue: introduced words whose review is due, oldest first. New words
+// enter through the word of the day (or a ✓/✗ in "Všechny karty").
+function dueCardIndices() {
+  return dueIndicesFrom(FLASHCARDS, loadSrs(), Date.now());
+}
+// Re-schedules a word only if it is already introduced; used by drills that
+// must not introduce new words (typing). Returns the new entry or null.
+function rescheduleIfIntroduced(key, correct) {
+  if (!loadSrs()[key]) return null;
+  return scheduleSrs(key, correct);
+}
+// "Naučeno" in the word of the day. Counts as activity only when the word was
+// really added, so a double click or an already introduced word changes nothing.
+function introduceCard(key) {
+  const srs = loadSrs();
+  const added = introduceInSrs(srs, key, Date.now());
+  if (added) {
+    saveSrs(srs);
+    recordActivity();
+  }
+  return added;
+}
+function introducedCount() {
+  const srs = loadSrs();
+  return FLASHCARDS.filter(card => srs[segmentsToPlainText(card.segments)]).length;
 }
 function nextDueTime() {
   const srs = loadSrs();
@@ -212,6 +249,14 @@ function formatInterval(ms) {
 const ACTIVITY_KEY = "hiragana-activity";
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
+}
+// Calendar day in the device's local time zone (the day rolls over at local
+// midnight, not UTC). Used by the word of the day; activity stays on todayKey().
+function localDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 function loadActivity() {
   try {
@@ -376,6 +421,7 @@ const flashcardEmptyEl = document.getElementById("flashcardEmpty");
 const flashcardEmptyTitleEl = document.getElementById("flashcardEmptyTitle");
 const flashcardEmptySubEl = document.getElementById("flashcardEmptySub");
 const flashcardNextBatchEl = document.getElementById("flashcardNextBatch");
+const flashcardGoWordEl = document.getElementById("flashcardGoWord");
 const flashcardActionsEl = document.getElementById("flashcardActions");
 const flashcardKnowActionsEl = document.getElementById("flashcardKnowActions");
 const srsHintEl = document.getElementById("srsHint");
@@ -409,10 +455,16 @@ function renderFlashcard() {
     flashcardCountEl.textContent = "0 / 0";
     // The deck is one batch, so "empty" can still mean more cards are waiting.
     const remaining = dueCardIndices().length;
+    flashcardGoWordEl.hidden = true;
     if (remaining > 0) {
       flashcardEmptyTitleEl.textContent = "Dávka hotová 👏";
       flashcardEmptySubEl.textContent = `Zbývá ještě ${remaining} karet k opakování.`;
       flashcardNextBatchEl.hidden = false;
+    } else if (introducedCount() === 0) {
+      flashcardEmptyTitleEl.textContent = "Opakování je prázdné";
+      flashcardEmptySubEl.textContent = "Slova do opakování přidáš ve Slově dne.";
+      flashcardNextBatchEl.hidden = true;
+      flashcardGoWordEl.hidden = false;
     } else {
       const next = nextDueTime();
       flashcardEmptyTitleEl.textContent = "Nic k opakování 🎉";
@@ -579,16 +631,224 @@ document.getElementById("flashcardKnowBtn").addEventListener("click", () => answ
 document.getElementById("flashcardDontKnow").addEventListener("click", () => answerFlashcard(false));
 flashcardNextBatchEl.addEventListener("click", buildFlashcardDeck);
 
+// Only sets the mode and the active chip; the caller rebuilds the deck (directly,
+// or via showTab("flashcards")).
+function setFlashcardMode(mode) {
+  flashcardMode = mode;
+  document.querySelectorAll("#flashcardModeChips .chip")
+    .forEach(c => c.classList.toggle("active", c.dataset.mode === mode));
+}
 document.querySelectorAll("#flashcardModeChips .chip").forEach(chip => {
   chip.addEventListener("click", () => {
-    document.querySelectorAll("#flashcardModeChips .chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    flashcardMode = chip.dataset.mode;
+    setFlashcardMode(chip.dataset.mode);
     buildFlashcardDeck();
   });
 });
+document.getElementById("flashcardGoWord").addEventListener("click", () => showTab("wordOfDay"));
 
 buildFlashcardDeck();
+
+// --- Word of the day ---
+// One new word per local calendar day, in FLASHCARDS order, with its example
+// sentences. "Naučeno" introduces the word into SRS; "Další slovo" moves on to
+// the next word not introduced yet. Only { date, key } is stored — the word
+// itself is always re-derived from FLASHCARDS and the SRS store.
+const WOD_KEY = "hiragana-word-of-day";
+
+// Validates the stored state. Anything unreadable, malformed or pointing at a
+// word that no longer exists is discarded (null), so the word is picked again;
+// the SRS store is never touched here.
+function parseWordOfDayState(raw, cards) {
+  if (typeof raw !== "string") return null;
+  let state;
+  try {
+    state = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!state || typeof state !== "object") return null;
+  if (typeof state.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(state.date)) return null;
+  if (typeof state.key !== "string") return null;
+  if (!cards.some(card => segmentsToPlainText(card.segments) === state.key)) return null;
+  return { date: state.date, key: state.key };
+}
+
+// Today's stored word stays for the whole day, even once introduced. Any other
+// date (a new day, missed days, or the clock moved back) picks the first word
+// not introduced yet. null = every word is already introduced.
+function resolveWordOfDay(state, today, cards, srs) {
+  if (state && state.date === today) return state;
+  const i = firstUnintroducedIndex(cards, srs);
+  if (i === -1) return null;
+  return { date: today, key: segmentsToPlainText(cards[i].segments) };
+}
+
+// The card's own example first, then the extra sentences (cards without
+// `examples` yet simply have one sentence).
+function sentencesForCard(card) {
+  return [card.example, ...(card.examples || [])].filter(Boolean);
+}
+
+// One-off notice for users who already had progress when review started to
+// contain introduced words only. Decided once, on the first run of this
+// version: existing data → "show" until dismissed, otherwise "done" for good.
+function resolveReviewNotice(stored, srs, stats) {
+  if (stored === "show" || stored === "done") return stored;
+  return Object.keys(srs).length > 0 || Object.keys(stats).length > 0 ? "show" : "done";
+}
+
+function loadWordOfDayState() {
+  return parseWordOfDayState(localStorage.getItem(WOD_KEY), FLASHCARDS);
+}
+function saveWordOfDayState(state) {
+  localStorage.setItem(WOD_KEY, JSON.stringify(state));
+}
+
+const wodContentEl = document.getElementById("wodContent");
+// FLASHCARDS index of the word on screen (-1 = empty state), read by the
+// delegated click handler below.
+let wodCardIndex = -1;
+
+// Each sentence is its own gloss root (own .flashcard-gloss-bar), because
+// toggleGloss tells tokens apart only by their segment index. The Japanese text
+// is visible straight away, so the gloss bar sits outside the reveal box.
+function wodSentenceHtml(ex, card, i) {
+  return `
+    <div class="sentence-card" data-sent="${i}">
+      <div class="sentence-top">
+        <span class="sentence-text">${exampleSegmentsToHtml(ex, card)}</span>
+        <div class="sentence-actions">
+          <button type="button" class="speak-btn" data-action="speak-sentence" title="Přehrát větu">🔊</button>
+          <button type="button" class="reveal-btn" data-action="reveal">Ukázat čtení a překlad</button>
+        </div>
+      </div>
+      <div class="flashcard-gloss-bar" hidden></div>
+      <div class="sentence-reveal">
+        <div class="sentence-romaji">${ex.romaji}</div>
+        <div class="sentence-translation">${ex.english}</div>
+      </div>
+    </div>`;
+}
+
+// justLearned = rendered right after "Naučeno": says when the word comes back.
+function renderWordOfDay(justLearned = false) {
+  const srs = loadSrs();
+  const state = resolveWordOfDay(loadWordOfDayState(), localDateKey(new Date()), FLASHCARDS, srs);
+  if (state) saveWordOfDayState(state);
+
+  const learnedHtml = justLearned
+    ? `<p class="wod-learned-note">Zopakuješ za ${formatInterval(SRS_INTERVALS_MS[0])} v Kartičkách.</p>`
+    : "";
+  const cardIndex = state
+    ? FLASHCARDS.findIndex(card => segmentsToPlainText(card.segments) === state.key)
+    : -1;
+  const introduced = cardIndex !== -1 && Boolean(srs[state.key]);
+
+  // Nothing left to introduce: an empty state instead of "Další slovo" that
+  // would lead nowhere (this wins over "same word all day" for the last word).
+  if (cardIndex === -1 || (introduced && firstUnintroducedIndex(FLASHCARDS, srs) === -1)) {
+    wodCardIndex = -1;
+    wodContentEl.innerHTML = `
+      <div class="flashcard-empty">
+        <p class="flashcard-empty-title">Všechna slova jsou v opakování</p>
+        ${learnedHtml}
+        <button type="button" class="primary-btn" data-action="review">Kartičky</button>
+      </div>`;
+    return;
+  }
+
+  wodCardIndex = cardIndex;
+  const card = FLASHCARDS[cardIndex];
+  const due = dueCardIndices().length;
+  const reviewHtml = due > 0
+    ? `<button type="button" class="wod-review-link" data-action="review">K opakování: ${due} → Kartičky</button>`
+    : "";
+  const actionHtml = introduced
+    ? `<span class="wod-status">V opakování</span>
+       <button type="button" class="secondary-btn" data-action="next">Další slovo</button>`
+    : `<button type="button" class="primary-btn" data-action="learn">Naučeno</button>`;
+  wodContentEl.innerHTML = `
+    ${reviewHtml}
+    <div class="wod-head">
+      <div class="wod-word">${segmentsToHtml(card.segments)}</div>
+      <div class="wod-romaji">${card.romaji}</div>
+      <div class="wod-english">${card.english}</div>
+      <button type="button" class="speak-btn" data-action="speak-word" title="Přehrát slovo">🔊</button>
+    </div>
+    <div class="sentence-list wod-sentences">
+      ${sentencesForCard(card).map((ex, i) => wodSentenceHtml(ex, card, i)).join("")}
+    </div>
+    <div class="wod-actions">${actionHtml}</div>
+    ${learnedHtml}`;
+}
+
+// One delegated listener: the content is re-rendered, the container is not.
+wodContentEl.addEventListener("click", (e) => {
+  const actionEl = e.target.closest("[data-action]");
+  const action = actionEl ? actionEl.dataset.action : "";
+  if (action === "review") {
+    setFlashcardMode("review");
+    showTab("flashcards");
+    return;
+  }
+  const card = FLASHCARDS[wodCardIndex];
+  if (!card) return;
+  const key = segmentsToPlainText(card.segments);
+  if (action === "learn") {
+    introduceCard(key);
+    renderWordOfDay(true);
+    return;
+  }
+  if (action === "next") {
+    const next = firstUnintroducedIndex(FLASHCARDS, loadSrs());
+    if (next !== -1) {
+      saveWordOfDayState({ date: localDateKey(new Date()), key: segmentsToPlainText(FLASHCARDS[next].segments) });
+    }
+    renderWordOfDay();
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (action === "speak-word") {
+    speak(key);
+    return;
+  }
+
+  const sentEl = e.target.closest(".sentence-card");
+  if (!sentEl) return;
+  const ex = sentencesForCard(card)[Number(sentEl.dataset.sent)];
+  if (action === "speak-sentence") {
+    speak(segmentsToPlainText(ex.segments));
+    return;
+  }
+  if (action === "reveal") {
+    const visible = sentEl.querySelector(".sentence-reveal").classList.toggle("visible");
+    actionEl.textContent = visible ? "Skrýt" : "Ukázat čtení a překlad";
+    return;
+  }
+  // A gloss word toggles its gloss; any other click in the sentence closes it.
+  const tok = e.target.closest(".gloss-token");
+  if (tok) {
+    const i = Number(tok.dataset.seg);
+    toggleGloss(sentEl, i, glossForToken(ex.segments[i], card), tok);
+  } else {
+    hideGloss(sentEl);
+  }
+});
+
+renderWordOfDay();
+
+// Decided before this session writes any progress, so only people who already
+// had data when review switched to introduced words see the notice.
+const REVIEW_NOTICE_KEY = "hiragana-review-notice";
+const reviewNoticeEl = document.getElementById("reviewNotice");
+const reviewNoticeState = resolveReviewNotice(
+  localStorage.getItem(REVIEW_NOTICE_KEY), loadSrs(), loadKanaStats());
+localStorage.setItem(REVIEW_NOTICE_KEY, reviewNoticeState);
+reviewNoticeEl.hidden = reviewNoticeState !== "show";
+document.getElementById("reviewNoticeClose").addEventListener("click", () => {
+  localStorage.setItem(REVIEW_NOTICE_KEY, "done");
+  reviewNoticeEl.hidden = true;
+});
 
 // --- Conversations ---
 function renderConversations() {
@@ -1127,8 +1387,10 @@ function checkTypingAnswer() {
   const correct = normalizeRomaji(given) === normalizeRomaji(typingItem.answer);
 
   updateKanaStat(typingItem.key, correct);
-  // Typing a word is a real review, so it also moves the card's SRS schedule.
-  if (typingItem.isVocab) scheduleSrs(typingItem.key, correct);
+  // Typing an introduced word is a real review, so it also moves the card's SRS
+  // schedule. A word not introduced yet stays out of SRS (only the word of the
+  // day or a flashcard ✓/✗ introduces it).
+  if (typingItem.isVocab) rescheduleIfIntroduced(typingItem.key, correct);
 
   if (correct) {
     typingScore++;
@@ -1214,7 +1476,8 @@ function renderProgress() {
 
   const due = dueCardIndices().length;
   const next = nextDueTime();
-  const scheduled = FLASHCARDS.length - due;
+  const introduced = introducedCount();
+  const scheduled = introduced - due;
   document.getElementById("progressSrs").innerHTML = `
     <div class="srs-stat">
       <span class="srs-stat-value">${due}</span>
@@ -1227,6 +1490,10 @@ function renderProgress() {
     <div class="srs-stat">
       <span class="srs-stat-value">${next ? formatInterval(next - Date.now()) : "—"}</span>
       <span class="srs-stat-label">další opakování</span>
+    </div>
+    <div class="srs-stat">
+      <span class="srs-stat-value">${introduced} / ${FLASHCARDS.length}</span>
+      <span class="srs-stat-label">zavedeno</span>
     </div>
   `;
 

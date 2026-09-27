@@ -331,6 +331,118 @@ h2 {
   color: var(--text-muted);
 }
 
+/* Word of the day — reuses the sentence cards, gloss tokens and empty state */
+.wod-review-link {
+  display: block;
+  margin: 0 0 1rem;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wod-review-link:hover {
+  text-decoration: underline;
+}
+
+.wod-head {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 0.9rem;
+  text-align: center;
+}
+
+.wod-word {
+  font-size: 2.4rem;
+  line-height: 2.2;
+}
+
+.wod-word rt {
+  font-size: 0.75rem;
+  color: var(--reading);
+  font-weight: 600;
+  user-select: none;
+}
+
+.wod-romaji {
+  color: var(--reading);
+  font-weight: 600;
+}
+
+.wod-english {
+  color: var(--text-muted);
+  margin-bottom: 0.7rem;
+}
+
+/* On the flashcard the gloss bar sticks to the bottom of the scrolling card;
+   here it would stick to the viewport instead, so keep it in the flow. */
+.wod-sentences .flashcard-gloss-bar {
+  position: static;
+  margin-top: 0.6rem;
+}
+
+.wod-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.2rem;
+}
+
+.wod-actions .secondary-btn {
+  margin-top: 0;
+}
+
+.wod-status {
+  color: var(--correct);
+  font-weight: 600;
+}
+
+.wod-learned-note {
+  text-align: center;
+  color: var(--text-muted);
+  margin: 0.8rem 0 0;
+}
+
+.flashcard-empty .primary-btn[data-action="review"],
+#flashcardGoWord {
+  margin-top: 1rem;
+}
+
+.review-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.8rem 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.review-notice[hidden] {
+  display: none;
+}
+
+.review-notice p {
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+.review-notice .secondary-btn {
+  margin-top: 0;
+  color: var(--text);
+}
+
 /* Flashcards */
 .flashcard-progress {
   display: flex;

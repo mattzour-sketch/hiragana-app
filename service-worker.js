@@ -1,10 +1,10 @@
-const CACHE_NAME = "hiragana-cache-v8";
+const CACHE_NAME = "hiragana-cache-v9";
 const APP_SHELL = [
   "./",
   "index.html",
-  "style.css?v=7",
-  "data.js?v=7",
-  "app.js?v=7",
+  "style.css?v=8",
+  "data.js?v=8",
+  "app.js?v=8",
   "manifest.json",
   "icons/icon-192.png",
   "icons/icon-512.png",
