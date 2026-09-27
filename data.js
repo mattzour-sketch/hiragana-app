@@ -677,7 +677,7 @@ const FLASHCARDS = [
     example: { segments: [{ t: "電車", f: "でんしゃ", hl: true }, { t: "に" }, { t: "乗", f: "の" }, { t: "ります" }], romaji: "densha ni norimasu", english: "I ride the train." },
     examples: [
       { segments: [{ t: "電車", f: "でんしゃ", hl: true }, { t: "で" }, { t: "会社", f: "かいしゃ", g: { romaji: "kaisha", text: "firma / práce" } }, { t: "へ" }, { t: "行", f: "い", g: { romaji: "iku", text: "jít" } }, { t: "きます" }], romaji: "densha de kaisha e ikimasu", english: "I go to work by train." },
-      { segments: [{ t: "電車", f: "でんしゃ", hl: true }, { t: "は" }, { t: "まだ", g: { romaji: "mada", text: "ještě (ne)" } }, { t: "来", f: "き", g: { romaji: "kuru", text: "přijet / přijít" } }, { t: "ません" }], romaji: "densha wa mada kimasen", english: "The train hasn't come yet." },
+      { segments: [{ t: "電車", f: "でんしゃ", hl: true }, { t: "は" }, { t: "まだ", g: { romaji: "mada", text: "ještě (ne)" } }, { t: "来", f: "き", g: { romaji: "kuru", text: "přijet / přijít" } }, { t: "ていません" }], romaji: "densha wa mada kite imasen", english: "The train hasn't come yet." },
     ] },
   { emoji: "🏠", segments: [{ t: "家", f: "いえ" }], romaji: "ie", english: "house",
     example: { segments: [{ t: "家", f: "いえ", hl: true }, { t: "に" }, { t: "帰", f: "かえ" }, { t: "ります" }], romaji: "ie ni kaerimasu", english: "I go home." },
@@ -714,7 +714,7 @@ const FLASHCARDS = [
   { emoji: "🐮", segments: [{ t: "牛", f: "うし" }], romaji: "ushi", english: "cow",
     example: { segments: [{ t: "牛", f: "うし", hl: true }, { t: "は" }, { t: "大", f: "おお" }, { t: "きいです" }], romaji: "ushi wa ookii desu", english: "Cows are big." },
     examples: [
-      { segments: [{ t: "おじいさん", g: { romaji: "ojiisan", text: "dědeček" } }, { t: "は" }, { t: "牛", f: "うし", hl: true }, { t: "を" }, { t: "飼", f: "か", g: { romaji: "kau", text: "chovat (zvíře)" } }, { t: "っています" }], romaji: "ojiisan wa ushi o katte imasu", english: "My grandfather keeps cows." },
+      { segments: [{ t: "祖父", f: "そふ", g: { romaji: "sofu", text: "(můj) dědeček" } }, { t: "は" }, { t: "牛", f: "うし", hl: true }, { t: "を" }, { t: "飼", f: "か", g: { romaji: "kau", text: "chovat (zvíře)" } }, { t: "っています" }], romaji: "sofu wa ushi o katte imasu", english: "My grandfather keeps cows." },
       { segments: [{ t: "この", g: { romaji: "kono", text: "tento" } }, { t: "牛", f: "うし", hl: true }, { t: "は" }, { t: "白", f: "しろ", g: { romaji: "shiro", text: "bílá" } }, { t: "と" }, { t: "黒", f: "くろ", g: { romaji: "kuro", text: "černá" } }, { t: "です" }], romaji: "kono ushi wa shiro to kuro desu", english: "This cow is black and white." },
     ] },
   { emoji: "🐷", segments: [{ t: "豚", f: "ぶた" }], romaji: "buta", english: "pig",

@@ -386,20 +386,26 @@ h2 {
   margin-top: 0.6rem;
 }
 
+/* One column: after "Naučeno" the status fills that button's spot and
+   "Další slovo" goes below, never under a second tap on "Naučeno". */
 .wod-actions {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.6rem;
   margin-top: 1.2rem;
 }
 
 .wod-actions .secondary-btn {
-  margin-top: 0;
+  margin-top: 0.4rem;
 }
 
+/* Same box height as .primary-btn ("Naučeno"), which it replaces. */
 .wod-status {
+  margin: 0;
+  padding: 0.75rem 0;
+  font-size: 1rem;
+  line-height: normal;
   color: var(--correct);
   font-weight: 600;
 }
@@ -407,7 +413,11 @@ h2 {
 .wod-learned-note {
   text-align: center;
   color: var(--text-muted);
-  margin: 0.8rem 0 0;
+  margin: 0;
+}
+
+.flashcard-empty .wod-learned-note {
+  margin-top: 0.8rem;
 }
 
 .flashcard-empty .primary-btn[data-action="review"],

@@ -1,6 +1,6 @@
 "use strict";
 // Unit testy pro "Slovo dne" a SRS jen se zavedenými slovy.
-// Spustit z adresáře hiragana-app:  node --test tests/
+// Spustit z adresáře hiragana-app:  node --test
 // Bez závislostí – vestavěný node:test + node:assert (Node >= 18).
 //
 // Stejně jako flashcard-examples.test.js načítá REÁLNÁ data z ../data.js a
@@ -188,13 +188,15 @@ test("sentencesForCard na reálných datech: první karta má 3 věty", () => {
   assert.strictEqual(sentencesForCard(FLASHCARDS[0]).length, 3);
 });
 
-test("resolveReviewNotice: stávající uživatel s daty → show, nový → done, rozhodnutí se drží", () => {
-  assert.strictEqual(resolveReviewNotice(null, { "犬": { box: 0, due: 0 } }, {}), "show");
-  assert.strictEqual(resolveReviewNotice(null, {}, { "あ": { correct: 1, wrong: 0 } }), "show");
-  assert.strictEqual(resolveReviewNotice(null, {}, {}), "done");
+test("resolveReviewNotice: jen uživatel s daty v SRS (Kartičky) → show, jinak done; rozhodnutí se drží", () => {
+  assert.strictEqual(resolveReviewNotice(null, { "犬": { box: 0, due: 0 } }), "show");
+  assert.strictEqual(resolveReviewNotice(null, {}), "done");
+  // jen kvízové/psací statistiky (kanaStats) hlášku nespustí – funkce je ani nebere
+  assert.strictEqual(resolveReviewNotice.length, 2);
   // jednou rozhodnuto → nemění se, ani když data přibudou / ubudou
-  assert.strictEqual(resolveReviewNotice("done", { "犬": { box: 0, due: 0 } }, {}), "done");
-  assert.strictEqual(resolveReviewNotice("show", {}, {}), "show");
+  assert.strictEqual(resolveReviewNotice("done", { "犬": { box: 0, due: 0 } }), "done");
+  assert.strictEqual(resolveReviewNotice("show", {}), "show");
   // neznámá hodnota = jako nerozhodnuto
-  assert.strictEqual(resolveReviewNotice("xyz", {}, {}), "done");
+  assert.strictEqual(resolveReviewNotice("xyz", {}), "done");
+  assert.strictEqual(resolveReviewNotice("xyz", { "犬": { box: 1, due: 0 } }), "show");
 });

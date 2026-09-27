@@ -206,7 +206,7 @@ Dávka 1: `examples` (2 věty) u karet 0–37. Nic jiného.
     v ≤ 1 segmentu, test shodí. Na falešné poplachy bude allowlist s komentářem,
   - homonyma dávky 1 (花/flower, かえる/frog, はち/bee): překlad obou nových vět obsahuje význam karty,
   - `< > &` a test částic jako samostatných segmentů rozšířit i na `examples`.
-- Spouštění: `node --test tests/` (Node 22 je k dispozici).
+- Spouštění: `node --test` (Node 22 je k dispozici).
 
 ## Plán implementace
 
@@ -215,7 +215,7 @@ Aplikace jde spustit po každém kroku (`python -m http.server 8732` podle `.cla
 1. **Pure helpery + unit testy** (`localDateKey`, `dueIndicesFrom`, `introduceInSrs`,
    `firstUnintroducedIndex`, `parseWordOfDayState`, `resolveWordOfDay`, `sentencesForCard`).
    `dueIndicesFrom` zatím napsat, ale `dueCardIndices` na něj ještě nepřepínat.
-   _Hotovo:_ `node --test tests/` je zelený, aplikace se chová jako dřív.
+   _Hotovo:_ `node --test` je zelený, aplikace se chová jako dřív.
 2. **Záložka Slovo dne** (`showTab`, HTML tab a sekce, `renderWordOfDay`, delegovaný listener, CSS,
    `introduceCard`, prázdný stav).
    _Hotovo:_ aplikace otevře Slovo dne. Při čistém `localStorage` ukáže 犬 s 1 větou. Naučeno vytvoří

@@ -689,12 +689,13 @@ function sentencesForCard(card) {
   return [card.example, ...(card.examples || [])].filter(Boolean);
 }
 
-// One-off notice for users who already had progress when review started to
-// contain introduced words only. Decided once, on the first run of this
-// version: existing data → "show" until dismissed, otherwise "done" for good.
-function resolveReviewNotice(stored, srs, stats) {
+// One-off notice for users who already had flashcard progress (SRS entries)
+// when review started to contain introduced words only. Quiz/typing stats alone
+// don't count — review never changed for those users. Decided once, on the
+// first run of this version: SRS data → "show" until dismissed, else "done".
+function resolveReviewNotice(stored, srs) {
   if (stored === "show" || stored === "done") return stored;
-  return Object.keys(srs).length > 0 || Object.keys(stats).length > 0 ? "show" : "done";
+  return Object.keys(srs).length > 0 ? "show" : "done";
 }
 
 function loadWordOfDayState() {
@@ -763,11 +764,15 @@ function renderWordOfDay(justLearned = false) {
   const reviewHtml = due > 0
     ? `<button type="button" class="wod-review-link" data-action="review">K opakování: ${due} → Kartičky</button>`
     : "";
+  // Stacked, not side by side: the status takes the spot where "Naučeno" was and
+  // "Další slovo" sits below it, so a double tap on "Naučeno" can't land on it.
   const actionHtml = introduced
-    ? `<span class="wod-status">V opakování</span>
+    ? `<p class="wod-status">V opakování</p>
+       ${learnedHtml}
        <button type="button" class="secondary-btn" data-action="next">Další slovo</button>`
     : `<button type="button" class="primary-btn" data-action="learn">Naučeno</button>`;
   wodContentEl.innerHTML = `
+    <p class="hint">Klepni na podtržené slovo a uvidíš jeho význam.</p>
     ${reviewHtml}
     <div class="wod-head">
       <div class="wod-word">${segmentsToHtml(card.segments)}</div>
@@ -778,9 +783,13 @@ function renderWordOfDay(justLearned = false) {
     <div class="sentence-list wod-sentences">
       ${sentencesForCard(card).map((ex, i) => wodSentenceHtml(ex, card, i)).join("")}
     </div>
-    <div class="wod-actions">${actionHtml}</div>
-    ${learnedHtml}`;
+    <div class="wod-actions">${actionHtml}</div>`;
 }
+
+// Extra guard against a fast double tap on "Naučeno" reaching "Další slovo"
+// (and skipping a word): "next" is ignored briefly after the word is learned.
+const WOD_NEXT_GUARD_MS = 700;
+let wodNextBlockedUntil = 0;
 
 // One delegated listener: the content is re-rendered, the container is not.
 wodContentEl.addEventListener("click", (e) => {
@@ -796,10 +805,12 @@ wodContentEl.addEventListener("click", (e) => {
   const key = segmentsToPlainText(card.segments);
   if (action === "learn") {
     introduceCard(key);
+    wodNextBlockedUntil = Date.now() + WOD_NEXT_GUARD_MS;
     renderWordOfDay(true);
     return;
   }
   if (action === "next") {
+    if (Date.now() < wodNextBlockedUntil) return;
     const next = firstUnintroducedIndex(FLASHCARDS, loadSrs());
     if (next !== -1) {
       saveWordOfDayState({ date: localDateKey(new Date()), key: segmentsToPlainText(FLASHCARDS[next].segments) });
@@ -841,8 +852,7 @@ renderWordOfDay();
 // had data when review switched to introduced words see the notice.
 const REVIEW_NOTICE_KEY = "hiragana-review-notice";
 const reviewNoticeEl = document.getElementById("reviewNotice");
-const reviewNoticeState = resolveReviewNotice(
-  localStorage.getItem(REVIEW_NOTICE_KEY), loadSrs(), loadKanaStats());
+const reviewNoticeState = resolveReviewNotice(localStorage.getItem(REVIEW_NOTICE_KEY), loadSrs());
 localStorage.setItem(REVIEW_NOTICE_KEY, reviewNoticeState);
 reviewNoticeEl.hidden = reviewNoticeState !== "show";
 document.getElementById("reviewNoticeClose").addEventListener("click", () => {
