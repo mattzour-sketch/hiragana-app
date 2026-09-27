@@ -884,7 +884,7 @@ const FLASHCARDS = [
   { emoji: "🍇", segments: [{ t: "ぶどう" }], romaji: "budou", english: "grapes",
     example: { segments: [{ t: "ぶどう", hl: true }, { t: "を" }, { t: "買", f: "か" }, { t: "います" }], romaji: "budou o kaimasu", english: "I buy grapes." },
     examples: [
-      { segments: [{ t: "ぶどう", hl: true }, { t: "で" }, { t: "ワイン", g: { romaji: "wain", text: "víno" } }, { t: "を" }, { t: "作", f: "つく", g: { romaji: "tsukuru", text: "vyrábět" } }, { t: "ります" }], romaji: "budou de wain o tsukurimasu", english: "Wine is made from grapes." },
+      { segments: [{ t: "ワイン", g: { romaji: "wain", text: "víno" } }, { t: "は" }, { t: "ぶどう", hl: true }, { t: "から" }, { t: "作", f: "つく", g: { romaji: "tsukuru", text: "vyrábět" } }, { t: "ります" }], romaji: "wain wa budou kara tsukurimasu", english: "Wine is made from grapes." },
       { segments: [{ t: "この", g: { romaji: "kono", text: "tento" } }, { t: "ぶどう", hl: true }, { t: "は" }, { t: "甘", f: "あま", g: { romaji: "amai", text: "sladký" } }, { t: "くないです" }], romaji: "kono budou wa amakunai desu", english: "These grapes aren't sweet." },
     ] },
   { emoji: "🍓", segments: [{ t: "いちご" }], romaji: "ichigo", english: "strawberry",
@@ -921,7 +921,7 @@ const FLASHCARDS = [
     example: { segments: [{ t: "お茶", f: "おちゃ", hl: true }, { t: "を" }, { t: "飲", f: "の" }, { t: "みます" }], romaji: "ocha o nomimasu", english: "I drink tea." },
     examples: [
       { segments: [{ t: "お茶", f: "おちゃ", hl: true }, { t: "は" }, { t: "いかが", g: { romaji: "ikaga", text: "co třeba (zdvořile)" } }, { t: "です" }, { t: "か" }], romaji: "ocha wa ikaga desu ka", english: "Would you like some tea?" },
-      { segments: [{ t: "日本", f: "にほん", g: { romaji: "nihon", text: "Japonsko" } }, { t: "の" }, { t: "お茶", f: "おちゃ", hl: true }, { t: "は" }, { t: "緑", f: "みどり", g: { romaji: "midori", text: "zelená" } }, { t: "です" }], romaji: "nihon no ocha wa midori desu", english: "Japanese tea is green." },
+      { segments: [{ t: "日本", f: "にほん", g: { romaji: "nihon", text: "Japonsko" } }, { t: "の" }, { t: "お茶", f: "おちゃ", hl: true }, { t: "は" }, { t: "緑色", f: "みどりいろ", g: { romaji: "midoriiro", text: "zelená barva" } }, { t: "です" }], romaji: "nihon no ocha wa midoriiro desu", english: "Japanese tea is green." },
     ] },
   { emoji: "🍺", segments: [{ t: "ビール" }], romaji: "biiru", english: "beer",
     example: { segments: [{ t: "ビール", hl: true }, { t: "を" }, { t: "飲", f: "の" }, { t: "みます" }], romaji: "biiru o nomimasu", english: "I drink beer." },
@@ -1051,7 +1051,7 @@ const FLASHCARDS = [
     example: { segments: [{ t: "口", f: "くち", hl: true }, { t: "を" }, { t: "開", f: "あ" }, { t: "けます" }], romaji: "kuchi o akemasu", english: "I open my mouth." },
     examples: [
       { segments: [{ t: "赤", f: "あか", g: { romaji: "akachan", text: "miminko" } }, { t: "ちゃん", g: { romaji: "akachan", text: "miminko" } }, { t: "は" }, { t: "口", f: "くち", hl: true }, { t: "が" }, { t: "小", f: "ちい", g: { romaji: "chiisai", text: "malý" } }, { t: "さいです" }], romaji: "akachan wa kuchi ga chiisai desu", english: "Babies have small mouths." },
-      { segments: [{ t: "口", f: "くち", hl: true }, { t: "の" }, { t: "中", f: "なか", g: { romaji: "naka", text: "vnitřek / uvnitř" } }, { t: "に" }, { t: "あめ", g: { romaji: "ame", text: "bonbon" } }, { t: "が" }, { t: "あります", g: { romaji: "arimasu", text: "být (o věci)" } }], romaji: "kuchi no naka ni ame ga arimasu", english: "I have a candy in my mouth." },
+      { segments: [{ t: "口", f: "くち", hl: true }, { t: "の" }, { t: "中", f: "なか", g: { romaji: "naka", text: "vnitřek / uvnitř" } }, { t: "が" }, { t: "痛", f: "いた", g: { romaji: "itai", text: "bolí" } }, { t: "いです" }], romaji: "kuchi no naka ga itai desu", english: "The inside of my mouth hurts." },
     ] },
   { emoji: "✋", segments: [{ t: "手", f: "て" }], romaji: "te", english: "hand",
     example: { segments: [{ t: "手", f: "て", hl: true }, { t: "を" }, { t: "洗", f: "あら" }, { t: "います" }], romaji: "te o araimasu", english: "I wash my hands." },
