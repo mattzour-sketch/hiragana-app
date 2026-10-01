@@ -366,6 +366,9 @@ let flashcardMode = "review";
 let flashcardOrder = [];
 let flashcardIndex = 0;
 let flashcardFlipped = false;
+// Whether the current card's back (the answer) has been shown. ✓/✗ stay
+// disabled until then, so a card can't be rated unseen; reset on every new card.
+let flashcardRevealed = false;
 // Session-wide "show example sentence" choice: once the user reveals a sentence
 // it stays revealed on every following card until they hide it again. In-memory
 // only (no localStorage), so a page reload resets it.
@@ -426,6 +429,14 @@ const flashcardActionsEl = document.getElementById("flashcardActions");
 const flashcardKnowActionsEl = document.getElementById("flashcardKnowActions");
 const srsHintEl = document.getElementById("srsHint");
 const dueCountEl = document.getElementById("dueCount");
+const flashcardKnowBtn = document.getElementById("flashcardKnowBtn");
+const flashcardDontKnowBtn = document.getElementById("flashcardDontKnow");
+
+function setFlashcardRevealed(revealed) {
+  flashcardRevealed = revealed;
+  flashcardKnowBtn.disabled = !revealed;
+  flashcardDontKnowBtn.disabled = !revealed;
+}
 
 function buildFlashcardDeck() {
   flashcardOrder = flashcardMode === "review"
@@ -433,6 +444,7 @@ function buildFlashcardDeck() {
     : shuffle(FLASHCARDS.map((_, i) => i));
   flashcardIndex = 0;
   flashcardFlipped = false;
+  setFlashcardRevealed(false);
   flashcardEl.classList.remove("flipped");
   srsHintEl.textContent = "";
   renderFlashcard();
@@ -555,6 +567,9 @@ function renderFlashcard() {
 function goToFlashcard(newIndex) {
   const wasFlipped = flashcardFlipped;
   flashcardFlipped = false;
+  // Disabled right away, not after the flip-back animation: a second tap on
+  // ✓/✗ in the meantime would otherwise rate the old card again.
+  setFlashcardRevealed(false);
   if (wasFlipped) {
     // Flip back to front first, and only swap the card's content once that
     // animation finishes — otherwise the next card's answer flashes on the
@@ -588,6 +603,7 @@ flashcardEl.addEventListener("click", () => {
   flashcardFlipped = !flashcardFlipped;
   flashcardEl.classList.toggle("flipped", flashcardFlipped);
   if (flashcardFlipped) {
+    setFlashcardRevealed(true);
     const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
     speak(segmentsToPlainText(card.segments));
   }
@@ -601,7 +617,7 @@ document.getElementById("flashcardShuffle").addEventListener("click", () => {
 });
 
 function answerFlashcard(correct) {
-  if (flashcardOrder.length === 0) return;
+  if (flashcardOrder.length === 0 || !flashcardRevealed) return;
   const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
   const key = segmentsToPlainText(card.segments);
   // Feed the shared adaptive stats so the quiz and typing drills prioritise
@@ -627,8 +643,8 @@ function answerFlashcard(correct) {
   }
 }
 
-document.getElementById("flashcardKnowBtn").addEventListener("click", () => answerFlashcard(true));
-document.getElementById("flashcardDontKnow").addEventListener("click", () => answerFlashcard(false));
+flashcardKnowBtn.addEventListener("click", () => answerFlashcard(true));
+flashcardDontKnowBtn.addEventListener("click", () => answerFlashcard(false));
 flashcardNextBatchEl.addEventListener("click", buildFlashcardDeck);
 
 // Only sets the mode and the active chip; the caller rebuilds the deck (directly,
@@ -1096,18 +1112,27 @@ function renderWeakSpots() {
     container.innerHTML = "";
     return;
   }
+  // The reset sits on its own line below, away from "Procvičit", and asks first:
+  // it wipes the whole answer history at once.
   container.innerHTML = `
     <span class="weak-spots-label">Nejvíc ti dělá potíže:</span>
     ${entries.map(([char]) => `<span class="weak-chip">${char}</span>`).join("")}
     <button id="practiceWeak" class="practice-weak-btn">🎯 Procvičit</button>
-    <button id="resetStats" class="reset-stats-btn">Vynulovat statistiky</button>
+    <div class="weak-spots-footer">
+      <button id="resetStats" class="reset-stats-btn">Vynulovat statistiky</button>
+    </div>
   `;
   document.getElementById("practiceWeak").addEventListener("click", () => startWeakQuiz());
   document.getElementById("resetStats").addEventListener("click", () => {
+    if (!confirm(RESET_STATS_CONFIRM)) return;
     localStorage.removeItem(KANA_STATS_KEY);
     renderWeakSpots();
   });
 }
+const RESET_STATS_CONFIRM =
+  "Vynulovat statistiky?\n\n" +
+  "Smaže se počet správných a chybných odpovědí u všech znaků a slov " +
+  "(slabá místa, výběr otázek, Pokrok). Opakování v Kartičkách zůstane.";
 renderWeakSpots();
 
 document.querySelectorAll("#categoryChips .chip").forEach(chip => {
@@ -1145,14 +1170,24 @@ const quizPrompt = document.getElementById("quizPrompt");
 const quizOptions = document.getElementById("quizOptions");
 const quizScoreEl = document.getElementById("quizScore");
 const quizCountEl = document.getElementById("quizCount");
+const quizNextBtn = document.getElementById("quizNext");
+const quizMistakesEl = document.getElementById("quizMistakes");
+const quizMistakeListEl = document.getElementById("quizMistakeList");
 
 let quizPool = [];
 let quizQueue = [];
 let currentQuestion = null;
 let score = 0;
-let quizMode = "normal"; // "normal" | "weak"
+let quizMode = "normal"; // "normal" | "weak" — also decides the wrong-option pool
 let roundLength = 10;
 const QUESTIONS_PER_ROUND = 10;
+// Questions missed in the current round, in the order they were missed.
+let quizMistakes = [];
+// Starts another round like the last one ("Zkusit znovu"); returns false when
+// it can't (no weak spots left), so the caller falls back to the setup.
+let quizRetry = null;
+// Pending auto-advance after a correct answer; cleared when the round ends early.
+let quizAdvanceTimer = null;
 
 function buildPool() {
   let pool = [];
@@ -1186,7 +1221,34 @@ function optionPoolFor(question) {
   return quizPool;
 }
 
+// Adds a missed question to the round's list once (keyed like the stats).
+function addQuizMistake(mistakes, pair) {
+  if (mistakes.some(p => p[0] === pair[0])) return false;
+  mistakes.push(pair);
+  return true;
+}
+
+// One line of the result list for a missed question: what was asked → the
+// right answer, with the reading on the kana/word side unless that side is
+// already the reading. Returns HTML (ruby for words), from trusted data only.
+function mistakeSummary(pair, direction) {
+  const vocab = isVocabPair(pair);
+  const reading = (r) => `<span class="mistake-reading">${r}</span>`;
+  const charSide = vocab ? `${pair[2]} ${reading(pair[3])}` : `${pair[0]} ${reading(pair[1])}`;
+  if (direction === "char2romaji") {
+    return vocab
+      ? { question: charSide, answer: pair[1] }
+      : { question: pair[0], answer: pair[1] };
+  }
+  if (direction === "romaji2char") {
+    return { question: pair[1], answer: vocab ? charSide : pair[0] };
+  }
+  return { question: "🔊", answer: charSide }; // audio2char
+}
+
 function nextQuestion() {
+  clearTimeout(quizAdvanceTimer);
+  quizNextBtn.hidden = true;
   if (quizQueue.length === 0) {
     finishQuiz();
     return;
@@ -1228,10 +1290,17 @@ function handleAnswer(btn, opt) {
     document.querySelectorAll(".option-btn").forEach(b => {
       if (b.textContent === correctVal) b.classList.add("correct");
     });
+    addQuizMistake(quizMistakes, currentQuestion);
   }
   updateKanaStat(currentQuestion[0], isCorrect);
   if (selectedDirection === "char2romaji") speak(currentQuestion[0]);
-  setTimeout(nextQuestion, 900);
+  if (isCorrect) {
+    quizAdvanceTimer = setTimeout(nextQuestion, 900);
+  } else {
+    // A miss waits for "Dál", so there is time to look at the right answer.
+    quizNextBtn.hidden = false;
+    quizNextBtn.focus();
+  }
 }
 
 function finishQuiz() {
@@ -1239,24 +1308,51 @@ function finishQuiz() {
   quizResult.hidden = false;
   document.getElementById("resultText").textContent =
     `Skóre ${score} / ${roundLength} — ${score === roundLength ? "perfektní! 🎉" : score >= roundLength * 0.7 ? "hezká práce!" : "trénuj dál!"}`;
+  quizMistakesEl.hidden = quizMistakes.length === 0;
+  quizMistakeListEl.innerHTML = quizMistakes.map(pair => {
+    const { question, answer } = mistakeSummary(pair, selectedDirection);
+    return `<li><span class="mistake-q">${question}</span> → <span class="mistake-a">${answer}</span></li>`;
+  }).join("");
 }
 
 function beginRound(queue) {
+  clearTimeout(quizAdvanceTimer);
   quizQueue = queue;
   roundLength = queue.length;
   score = 0;
+  quizMistakes = [];
   quizScoreEl.textContent = "Skóre: 0";
   quizSetup.hidden = true;
   quizResult.hidden = true;
   quizPlay.hidden = false;
   nextQuestion();
+  return true;
 }
 
 function startQuiz() {
   quizMode = "normal";
+  quizRetry = startQuiz;
   quizPool = buildPool();
   const count = Math.min(QUESTIONS_PER_ROUND, quizPool.length);
-  beginRound(shuffle(weightedSample(quizPool, count)).reverse());
+  return beginRound(shuffle(weightedSample(quizPool, count)).reverse());
+}
+
+// A round of just the questions missed in the last one. Direction, quizMode
+// and quizPool stay as they were, so the wrong options come from the same set
+// as in that round; "Zkusit znovu" afterwards repeats these same items.
+function startMistakesQuiz() {
+  const items = [...quizMistakes];
+  if (items.length === 0) return false;
+  quizRetry = () => beginRound(shuffle(items));
+  return quizRetry();
+}
+
+function showQuizSetup() {
+  clearTimeout(quizAdvanceTimer);
+  quizPlay.hidden = true;
+  quizResult.hidden = true;
+  quizSetup.hidden = false;
+  renderWeakSpots();
 }
 
 // Targeted practice: a round built only from the user's current weak spots.
@@ -1268,23 +1364,22 @@ function startWeakQuiz() {
     .sort((a, b) => kanaWeight(b[0], stats) - kanaWeight(a[0], stats))
     .slice(0, QUESTIONS_PER_ROUND)
     .map(([key]) => lookup.get(key));
-  if (weak.length === 0) return;
+  if (weak.length === 0) return false;
   quizMode = "weak";
+  quizRetry = startWeakQuiz;
   quizPool = weak;
-  beginRound(shuffle(weak).reverse());
+  return beginRound(shuffle(weak).reverse());
 }
 
 document.getElementById("startQuiz").addEventListener("click", startQuiz);
+quizNextBtn.addEventListener("click", nextQuestion);
+document.getElementById("practiceMistakes").addEventListener("click", startMistakesQuiz);
+// A new round with the same settings; the setup only if that's not possible.
 document.getElementById("retryQuiz").addEventListener("click", () => {
-  quizResult.hidden = true;
-  quizSetup.hidden = false;
-  renderWeakSpots();
+  if (!quizRetry || !quizRetry()) showQuizSetup();
 });
-document.getElementById("quitQuiz").addEventListener("click", () => {
-  quizPlay.hidden = true;
-  quizSetup.hidden = false;
-  renderWeakSpots();
-});
+document.getElementById("quizSettings").addEventListener("click", showQuizSetup);
+document.getElementById("quitQuiz").addEventListener("click", showQuizSetup);
 
 // --- Typing drills ---
 // Free-text recall instead of multiple choice. Input is compared after
@@ -1325,7 +1420,12 @@ let typingCategory = "hiragana";
 let typingScore = 0;
 let typingStreak = 0;
 let typingItem = null;
-let typingAwaitingNext = false;
+// "answer" = waiting for input, "wrong" = miss shown with "Zkusit znovu"/"Dál",
+// "done" = correct answer shown, next question about to come.
+let typingPhase = "answer";
+let typingMissed = false;   // the current question was answered wrong at least once
+let typingRecorded = false; // the current question already went to stats/SRS
+let typingAdvanceTimer = null;
 
 const typingPromptEl = document.getElementById("typingPrompt");
 const typingSubEl = document.getElementById("typingSub");
@@ -1334,6 +1434,9 @@ const typingFeedbackEl = document.getElementById("typingFeedback");
 const typingScoreEl = document.getElementById("typingScore");
 const typingStreakEl = document.getElementById("typingStreak");
 const typingCheckBtn = document.getElementById("typingCheck");
+const typingSkipBtn = document.getElementById("typingSkip");
+const typingRetryBtn = document.getElementById("typingRetry");
+const typingNextBtn = document.getElementById("typingNext");
 
 function typingPool() {
   if (typingCategory === "hiragana") return HIRAGANA_ALL.map(typingItemFromKana);
@@ -1366,14 +1469,53 @@ function pickTypingItem() {
   return candidates[candidates.length - 1];
 }
 
+// What an answer event records for the current question: true/false = a
+// correct/wrong answer (stats, and SRS for introduced words), null = nothing.
+// Pure, so the rules can be tested without the DOM:
+// - a first-try correct answer counts at once;
+// - a miss counts only when the user moves on with "Dál", and only once;
+// - a correct retry after a miss ("Zkusit znovu") records nothing.
+function typingRecordFor(event, missed, recorded) {
+  if (recorded) return null;
+  if (event === "correct") return missed ? null : true;
+  if (event === "next") return missed ? false : null;
+  return null; // "wrong": decided later by "Dál"
+}
+
+// Typing an introduced word is a real review, so it also moves the card's SRS
+// schedule. A word not introduced yet stays out of SRS (only the word of the
+// day or a flashcard ✓/✗ introduces it).
+function recordTypingAnswer(key, isVocab, correct) {
+  updateKanaStat(key, correct);
+  if (isVocab) rescheduleIfIntroduced(key, correct);
+}
+
+function applyTypingRecord(record) {
+  if (record === null) return;
+  typingRecorded = true;
+  recordTypingAnswer(typingItem.key, typingItem.isVocab, record);
+}
+
+// Check/Skip while answering; Retry/Next after a miss.
+function setTypingPhase(phase) {
+  typingPhase = phase;
+  const wrong = phase === "wrong";
+  typingCheckBtn.hidden = wrong;
+  typingSkipBtn.hidden = wrong;
+  typingRetryBtn.hidden = !wrong;
+  typingNextBtn.hidden = !wrong;
+  typingInputEl.disabled = phase !== "answer";
+}
+
 function renderTypingQuestion() {
+  clearTimeout(typingAdvanceTimer);
   typingItem = pickTypingItem();
-  typingAwaitingNext = false;
+  typingMissed = false;
+  typingRecorded = false;
+  setTypingPhase("answer");
   typingFeedbackEl.textContent = "";
   typingFeedbackEl.className = "typing-feedback";
   typingInputEl.value = "";
-  typingInputEl.disabled = false;
-  typingCheckBtn.textContent = "Zkontrolovat";
 
   if (!typingItem) {
     typingPromptEl.textContent = "🎉";
@@ -1387,38 +1529,50 @@ function renderTypingQuestion() {
 }
 
 function checkTypingAnswer() {
-  if (!typingItem) return;
-  if (typingAwaitingNext) {
-    renderTypingQuestion();
-    return;
-  }
+  if (!typingItem || typingPhase !== "answer") return;
   const given = typingInputEl.value;
   if (!given.trim()) return;
   const correct = normalizeRomaji(given) === normalizeRomaji(typingItem.answer);
-
-  updateKanaStat(typingItem.key, correct);
-  // Typing an introduced word is a real review, so it also moves the card's SRS
-  // schedule. A word not introduced yet stays out of SRS (only the word of the
-  // day or a flashcard ✓/✗ introduces it).
-  if (typingItem.isVocab) rescheduleIfIntroduced(typingItem.key, correct);
+  applyTypingRecord(typingRecordFor(correct ? "correct" : "wrong", typingMissed, typingRecorded));
 
   if (correct) {
-    typingScore++;
-    typingStreak++;
+    // A retry after a miss is not a first-try answer: no score, no streak.
+    if (!typingMissed) {
+      typingScore++;
+      typingStreak++;
+    }
     typingFeedbackEl.textContent = `✓ Správně — ${typingItem.answer}`;
     typingFeedbackEl.className = "typing-feedback correct";
     speak(typingItem.key);
-    typingInputEl.disabled = true;
-    setTimeout(renderTypingQuestion, 800);
+    setTypingPhase("done");
+    typingAdvanceTimer = setTimeout(renderTypingQuestion, 800);
   } else {
+    typingMissed = true;
     typingStreak = 0;
     typingFeedbackEl.textContent = `✗ Správně je: ${typingItem.answer}`;
     typingFeedbackEl.className = "typing-feedback wrong";
-    typingAwaitingNext = true;
-    typingCheckBtn.textContent = "Další";
+    setTypingPhase("wrong");
+    typingNextBtn.focus();
   }
   typingScoreEl.textContent = `Správně: ${typingScore}`;
   typingStreakEl.textContent = typingStreak >= 3 ? `🔥 ${typingStreak} v řadě` : "";
+}
+
+// Same question again with an empty field; nothing is recorded yet.
+function retryTypingQuestion() {
+  if (typingPhase !== "wrong") return;
+  setTypingPhase("answer");
+  typingFeedbackEl.textContent = "";
+  typingFeedbackEl.className = "typing-feedback";
+  typingInputEl.value = "";
+  typingInputEl.focus();
+}
+
+// "Dál" after a miss: only now the miss counts (stats + SRS), then move on.
+function nextTypingQuestion() {
+  if (typingPhase !== "wrong") return;
+  applyTypingRecord(typingRecordFor("next", typingMissed, typingRecorded));
+  renderTypingQuestion();
 }
 
 function startTypingRound() {
@@ -1431,12 +1585,26 @@ function startTypingRound() {
 }
 
 typingCheckBtn.addEventListener("click", checkTypingAnswer);
-document.getElementById("typingSkip").addEventListener("click", renderTypingQuestion);
+typingSkipBtn.addEventListener("click", renderTypingQuestion);
+typingRetryBtn.addEventListener("click", retryTypingQuestion);
+typingNextBtn.addEventListener("click", nextTypingQuestion);
 typingInputEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     checkTypingAnswer();
   }
+});
+
+// After a miss "Dál" gets focus, so Enter/Space press it natively. This covers
+// the case where focus moved elsewhere (a tap on the page): Enter/Space then
+// still mean "Dál". Keys aimed at another control keep their own meaning.
+document.addEventListener("keydown", (e) => {
+  if ((e.key !== "Enter" && e.key !== " ") || e.repeat) return;
+  if (e.target instanceof Element && e.target.closest("button, input, select, textarea, a")) return;
+  const btn = [quizNextBtn, typingNextBtn].find(b => !b.hidden && b.offsetParent !== null);
+  if (!btn) return;
+  e.preventDefault();
+  btn.click();
 });
 document.querySelectorAll("#typingCategoryChips .chip").forEach(chip => {
   chip.addEventListener("click", () => {

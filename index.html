@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <header class="topbar">
@@ -260,6 +260,8 @@
       <div class="typing-actions">
         <button id="typingCheck" class="primary-btn">Zkontrolovat</button>
         <button id="typingSkip" class="secondary-btn">Přeskočit</button>
+        <button id="typingRetry" class="secondary-btn" hidden>Zkusit znovu</button>
+        <button id="typingNext" class="primary-btn" hidden>Dál</button>
       </div>
     </div>
   </section>
@@ -313,6 +315,7 @@
       <div class="quiz-card">
         <div class="quiz-prompt" id="quizPrompt">?</div>
         <div class="quiz-options" id="quizOptions"></div>
+        <button id="quizNext" class="primary-btn quiz-next-btn" hidden>Dál</button>
       </div>
       <button id="quitQuiz" class="secondary-btn">Ukončit kvíz</button>
     </div>
@@ -320,12 +323,20 @@
     <div class="quiz-result" id="quizResult" hidden>
       <h2>Výsledek</h2>
       <p id="resultText"></p>
-      <button id="retryQuiz" class="primary-btn">Zkusit znovu</button>
+      <div class="quiz-mistakes" id="quizMistakes" hidden>
+        <h3>Chyby</h3>
+        <ul class="quiz-mistake-list" id="quizMistakeList"></ul>
+        <button id="practiceMistakes" class="primary-btn">Procvičit chyby</button>
+      </div>
+      <div class="quiz-result-actions">
+        <button id="retryQuiz" class="primary-btn">Zkusit znovu</button>
+        <button id="quizSettings" class="secondary-btn">Nastavení</button>
+      </div>
     </div>
   </section>
 </main>
 
-<script src="data.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="data.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
