@@ -1,7 +1,8 @@
 "use strict";
 // Testy pro chyby v Kvízu ("Procvičit chyby", souhrn chyb) a pro rozhodnutí,
-// co se v Psaní zapíše do statistik a SRS (chyba až po "Dál", oprava přes
-// "Zkusit znovu" nic nezapíše).
+// co se v Psaní zapíše do statistik a SRS: chyba se zapíše jednou na otázku –
+// oprava přes "Zkusit znovu" jen do statistik (SRS beze změny), opuštění
+// otázky jinak ("Dál", "Přeskočit", jiná kategorie/záložka) i do SRS.
 // Spustit z adresáře hiragana-app:  node --test
 //
 // Funkce se tahají z REÁLNÉHO app.js (top-level `function … }` od kraje řádku),
@@ -56,7 +57,7 @@ function makeEnv(initial = {}) {
 }
 
 // Stejné řízení jako v app.js (checkTypingAnswer / retryTypingQuestion /
-// nextTypingQuestion): events = "correct" | "wrong" | "retry" | "next".
+// settleTypingMiss): events = "correct" | "wrong" | "retry" | "leave".
 function playTyping(env, item, events) {
   let missed = false;
   let recorded = false;
@@ -120,60 +121,70 @@ test("Souhrn chyb – slova: slovo s furiganou a romaji, význam", () => {
 
 test("typingRecordFor: pravidla zápisu", () => {
   // první pokus
-  assert.strictEqual(typingRecordFor("correct", false, false), true);
+  assert.deepStrictEqual(typingRecordFor("correct", false, false), { stat: true, srs: true });
   assert.strictEqual(typingRecordFor("wrong", false, false), null, "chyba se nezapíše hned");
   // po chybě
   assert.strictEqual(typingRecordFor("wrong", true, false), null);
-  assert.strictEqual(typingRecordFor("correct", true, false), null, "oprava po chybě nic nezapíše");
-  assert.strictEqual(typingRecordFor("next", true, false), false, "Dál po chybě = chyba");
-  // bez chyby "Dál" nic neznamená, a nic se nezapíše dvakrát
-  assert.strictEqual(typingRecordFor("next", false, false), null);
-  assert.strictEqual(typingRecordFor("next", true, true), null);
+  assert.deepStrictEqual(typingRecordFor("correct", true, false), { stat: false, srs: null },
+    "oprava po chybě = chyba ve statistikách, SRS beze změny");
+  assert.deepStrictEqual(typingRecordFor("leave", true, false), { stat: false, srs: false },
+    "odchod po chybě = chyba i v SRS");
+  // bez chyby odchod nic neznamená, a nic se nezapíše dvakrát
+  assert.strictEqual(typingRecordFor("leave", false, false), null);
+  assert.strictEqual(typingRecordFor("leave", true, true), null);
+  assert.strictEqual(typingRecordFor("correct", true, true), null);
   assert.strictEqual(typingRecordFor("correct", false, true), null);
 });
 
 const introduced = () => ({ "hiragana-srs": JSON.stringify({ "犬": { box: 2, due: 0 } }) });
 const DOG = { key: "犬", isVocab: true };
 
-test("Psaní: chyba → Zkusit znovu → správně: statistiky ani SRS se nezmění", () => {
+test("Psaní: chyba → Zkusit znovu → správně: jedna chyba ve statistikách, SRS beze změny", () => {
   const env = makeEnv(introduced());
-  playTyping(env, DOG, ["wrong", "retry", "correct"]);
-  assert.deepStrictEqual(env.loadKanaStats(), {});
+  playTyping(env, DOG, ["wrong", "retry", "correct", "leave"]);
+  assert.deepStrictEqual(env.loadKanaStats(), { "犬": { correct: 0, wrong: 1 } });
   assert.deepStrictEqual(env.loadSrs()["犬"], { box: 2, due: 0 });
-  assert.strictEqual(env.activity, 0);
+  assert.strictEqual(env.activity, 1);
+});
+
+test("Psaní: chyba → Zkusit znovu → odchod bez opravy (Přeskočit): chyba i do SRS", () => {
+  const env = makeEnv(introduced());
+  playTyping(env, DOG, ["wrong", "retry", "leave"]);
+  assert.deepStrictEqual(env.loadKanaStats()["犬"], { correct: 0, wrong: 1 });
+  assert.strictEqual(env.loadSrs()["犬"].box, 0);
 });
 
 test("Psaní: chyba → Dál: jedna chyba ve statistikách, zavedené slovo do box 0", () => {
   const env = makeEnv(introduced());
-  playTyping(env, DOG, ["wrong", "next"]);
+  playTyping(env, DOG, ["wrong", "leave"]);
   assert.deepStrictEqual(env.loadKanaStats()["犬"], { correct: 0, wrong: 1 });
   assert.strictEqual(env.loadSrs()["犬"].box, 0);
 });
 
 test("Psaní: víc chyb přes Zkusit znovu, pak Dál: chyba se zapíše jen jednou", () => {
   const env = makeEnv(introduced());
-  playTyping(env, DOG, ["wrong", "retry", "wrong", "retry", "wrong", "next"]);
+  playTyping(env, DOG, ["wrong", "retry", "wrong", "retry", "wrong", "leave"]);
   assert.deepStrictEqual(env.loadKanaStats()["犬"], { correct: 0, wrong: 1 });
   assert.strictEqual(env.activity, 1);
 });
 
 test("Psaní: chyba → Dál u nezavedeného slova: jen statistika, do SRS se nezavede", () => {
   const env = makeEnv();
-  playTyping(env, { key: "猫", isVocab: true }, ["wrong", "next"]);
+  playTyping(env, { key: "猫", isVocab: true }, ["wrong", "leave"]);
   assert.deepStrictEqual(env.loadKanaStats()["猫"], { correct: 0, wrong: 1 });
   assert.strictEqual(env.store.has("hiragana-srs"), false);
 });
 
 test("Psaní: správně napoprvé – beze změny (statistika + SRS box+1)", () => {
   const env = makeEnv(introduced());
-  playTyping(env, DOG, ["correct"]);
+  playTyping(env, DOG, ["correct", "leave"]);
   assert.deepStrictEqual(env.loadKanaStats()["犬"], { correct: 1, wrong: 0 });
   assert.strictEqual(env.loadSrs()["犬"].box, 3);
 });
 
 test("Psaní: znak (ne slovo) do SRS nikdy nejde", () => {
   const env = makeEnv({ "hiragana-srs": JSON.stringify({ "あ": { box: 1, due: 0 } }) });
-  playTyping(env, { key: "あ", isVocab: false }, ["wrong", "next"]);
+  playTyping(env, { key: "あ", isVocab: false }, ["wrong", "leave"]);
   assert.deepStrictEqual(env.loadSrs()["あ"], { box: 1, due: 0 });
 });
 

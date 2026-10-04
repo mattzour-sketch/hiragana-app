@@ -1154,7 +1154,7 @@ function renderWeakSpots() {
 const RESET_STATS_CONFIRM =
   "Vynulovat statistiky?\n\n" +
   "Smaže se počet správných a chybných odpovědí u všech znaků a slov " +
-  "(slabá místa, výběr otázek, Pokrok). Opakování v Kartičkách zůstane.";
+  "(slabá místa, výběr otázek). Opakování v Kartičkách a historie aktivity zůstanou.";
 renderWeakSpots();
 
 document.querySelectorAll("#categoryChips .chip").forEach(chip => {
@@ -1330,7 +1330,10 @@ function finishQuiz() {
   quizResult.hidden = false;
   document.getElementById("resultText").textContent =
     `Skóre ${score} / ${roundLength} — ${score === roundLength ? "perfektní! 🎉" : score >= roundLength * 0.7 ? "hezká práce!" : "trénuj dál!"}`;
-  quizMistakesEl.hidden = quizMistakes.length === 0;
+  // With mistakes, practising them is the main next step; otherwise a new round.
+  const hasMistakes = quizMistakes.length > 0;
+  quizMistakesEl.hidden = !hasMistakes;
+  document.getElementById("retryQuiz").className = hasMistakes ? "secondary-btn" : "primary-btn";
   quizMistakeListEl.innerHTML = quizMistakes.map(pair => {
     const { question, answer } = mistakeSummary(pair, selectedDirection);
     return `<li><span class="mistake-q">${question}</span> → <span class="mistake-a">${answer}</span></li>`;
@@ -1491,25 +1494,28 @@ function pickTypingItem() {
   return candidates[candidates.length - 1];
 }
 
-// What an answer event records for the current question: true/false = a
-// correct/wrong answer (stats, and SRS for introduced words), null = nothing.
+// What an answer event records for the current question, at most once:
+// { stat, srs } — stat = correct/wrong in the adaptive stats, srs = correct/
+// wrong for the SRS schedule or null to leave it alone; null = nothing yet.
 // Pure, so the rules can be tested without the DOM:
-// - a first-try correct answer counts at once;
-// - a miss counts only when the user moves on with "Dál", and only once;
-// - a correct retry after a miss ("Zkusit znovu") records nothing.
+// - a first-try correct answer counts at once (stats + SRS);
+// - a miss waits: retrying it right ("Zkusit znovu") is still a miss in the
+//   stats, but leaves SRS as it was;
+// - leaving a missed question any other way ("Dál", "Přeskočit", another
+//   category or tab) records the miss in stats and SRS.
 function typingRecordFor(event, missed, recorded) {
   if (recorded) return null;
-  if (event === "correct") return missed ? null : true;
-  if (event === "next") return missed ? false : null;
-  return null; // "wrong": decided later by "Dál"
+  if (event === "correct") return missed ? { stat: false, srs: null } : { stat: true, srs: true };
+  if (event === "leave") return missed ? { stat: false, srs: false } : null;
+  return null; // "wrong": decided when the question is retried or left
 }
 
 // Typing an introduced word is a real review, so it also moves the card's SRS
 // schedule. A word not introduced yet stays out of SRS (only the word of the
 // day or a flashcard ✓/✗ introduces it).
-function recordTypingAnswer(key, isVocab, correct) {
-  updateKanaStat(key, correct);
-  if (isVocab) rescheduleIfIntroduced(key, correct);
+function recordTypingAnswer(key, isVocab, record) {
+  updateKanaStat(key, record.stat);
+  if (isVocab && record.srs !== null) rescheduleIfIntroduced(key, record.srs);
 }
 
 function applyTypingRecord(record) {
@@ -1529,8 +1535,16 @@ function setTypingPhase(phase) {
   typingInputEl.disabled = phase !== "answer";
 }
 
+// A missed question that is left before it was recorded counts as a miss,
+// however it is left (Dál, Přeskočit, another category, back to the tab).
+function settleTypingMiss() {
+  if (!typingItem) return;
+  applyTypingRecord(typingRecordFor("leave", typingMissed, typingRecorded));
+}
+
 function renderTypingQuestion() {
   clearTimeout(typingAdvanceTimer);
+  settleTypingMiss();
   typingItem = pickTypingItem();
   typingMissed = false;
   typingRecorded = false;
@@ -1590,10 +1604,9 @@ function retryTypingQuestion() {
   typingInputEl.focus();
 }
 
-// "Dál" after a miss: only now the miss counts (stats + SRS), then move on.
+// "Dál" after a miss: the miss is recorded on the way out (settleTypingMiss).
 function nextTypingQuestion() {
   if (typingPhase !== "wrong") return;
-  applyTypingRecord(typingRecordFor("next", typingMissed, typingRecorded));
   renderTypingQuestion();
 }
 
@@ -1602,6 +1615,7 @@ function startTypingRound() {
   typingStreak = 0;
   typingScoreEl.textContent = "Správně: 0";
   typingStreakEl.textContent = "";
+  settleTypingMiss();
   typingItem = null;
   renderTypingQuestion();
 }
@@ -1616,6 +1630,22 @@ typingInputEl.addEventListener("keydown", (e) => {
     checkTypingAnswer();
   }
 });
+
+// "Dál" gets focus right after a miss, so a key still held from answering
+// (Enter in the typing field, Enter/Space on a quiz option) would auto-repeat
+// straight onto it and skip the right answer. Repeats are swallowed here, in
+// the capture phase, before the button's default activation; a fresh press
+// works as usual.
+function ignoreHeldKey(btn) {
+  btn.addEventListener("keydown", (e) => {
+    if (e.repeat && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+}
+ignoreHeldKey(quizNextBtn);
+ignoreHeldKey(typingNextBtn);
 
 // After a miss "Dál" gets focus, so Enter/Space press it natively. This covers
 // the case where focus moved elsewhere (a tap on the page): Enter/Space then
