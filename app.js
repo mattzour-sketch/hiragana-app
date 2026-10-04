@@ -56,9 +56,22 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 let ttsVolume = parseFloat(localStorage.getItem("hiragana-volume") ?? "1");
 let selectedVoiceURI = localStorage.getItem("hiragana-voice") || "";
 
+// Card words are spoken from their furigana, not their kanji: on its own a
+// single kanji has no context and TTS often picks another reading
+// (四 → し instead of よん, 月 → げつ instead of つき). Sentences keep their
+// kanji, which gives the engine context for particles like は.
+let cardReadings = null;
+function speechText(text) {
+  if (!cardReadings) {
+    cardReadings = new Map(FLASHCARDS.map(c =>
+      [segmentsToPlainText(c.segments), c.segments.map(s => s.f || s.t).join("")]));
+  }
+  return cardReadings.get(text) ?? text;
+}
+
 function speak(char) {
   if (!("speechSynthesis" in window)) return;
-  const utter = new SpeechSynthesisUtterance(char);
+  const utter = new SpeechSynthesisUtterance(speechText(char));
   utter.lang = "ja-JP";
   utter.volume = ttsVolume;
   const voice = speechSynthesis.getVoices().find(v => v.voiceURI === selectedVoiceURI);
@@ -564,6 +577,12 @@ function renderFlashcard() {
   flashcardCountEl.textContent = `${flashcardIndex + 1} / ${flashcardOrder.length}`;
 }
 
+// True while a flipped card turns back and its content hasn't been swapped yet.
+// flashcardIndex (and in review mode the deck) already point at the next card,
+// but the old one is still on screen, so flipping or rating now would act on
+// — and speak — a card the user doesn't see.
+let flashcardSwapPending = false;
+
 function goToFlashcard(newIndex) {
   const wasFlipped = flashcardFlipped;
   flashcardFlipped = false;
@@ -576,10 +595,12 @@ function goToFlashcard(newIndex) {
     // back face while it's still rotating away. A timeout fallback covers
     // cases where transitionend never fires (e.g. reduced-motion, hidden tab).
     flashcardEl.classList.remove("flipped");
+    flashcardSwapPending = true;
     let swapped = false;
     const swap = () => {
       if (swapped) return;
       swapped = true;
+      flashcardSwapPending = false;
       flashcardEl.removeEventListener("transitionend", onTransitionEnd);
       flashcardIndex = (newIndex + flashcardOrder.length) % flashcardOrder.length;
       renderFlashcard();
@@ -600,6 +621,7 @@ flashcardEl.addEventListener("click", () => {
   // closes the gloss — it does not flip the card.
   const bar = flashcardBackEl.querySelector(".flashcard-gloss-bar");
   if (bar && !bar.hidden) { hideGloss(flashcardBackEl); return; }
+  if (flashcardSwapPending) return;
   flashcardFlipped = !flashcardFlipped;
   flashcardEl.classList.toggle("flipped", flashcardFlipped);
   if (flashcardFlipped) {
@@ -617,7 +639,7 @@ document.getElementById("flashcardShuffle").addEventListener("click", () => {
 });
 
 function answerFlashcard(correct) {
-  if (flashcardOrder.length === 0 || !flashcardRevealed) return;
+  if (flashcardOrder.length === 0 || !flashcardRevealed || flashcardSwapPending) return;
   const card = FLASHCARDS[flashcardOrder[flashcardIndex]];
   const key = segmentsToPlainText(card.segments);
   // Feed the shared adaptive stats so the quiz and typing drills prioritise
