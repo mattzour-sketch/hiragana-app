@@ -379,6 +379,14 @@ let flashcardMode = "review";
 let flashcardOrder = [];
 let flashcardIndex = 0;
 let flashcardFlipped = false;
+// True while a flipped card turns back and its content hasn't been swapped yet.
+// flashcardIndex (and in review mode the deck) already point at the next card,
+// but the old one is still on screen, so flipping or rating now would act on
+// — and speak — a card the user doesn't see.
+let flashcardSwapPending = false;
+// Bumped by every swap and by buildFlashcardDeck, so a swap still in flight
+// when the deck is rebuilt doesn't move the new deck's index.
+let flashcardSwapGen = 0;
 // Whether the current card's back (the answer) has been shown. ✓/✗ stay
 // disabled until then, so a card can't be rated unseen; reset on every new card.
 let flashcardRevealed = false;
@@ -457,6 +465,8 @@ function buildFlashcardDeck() {
     : shuffle(FLASHCARDS.map((_, i) => i));
   flashcardIndex = 0;
   flashcardFlipped = false;
+  flashcardSwapGen++;
+  flashcardSwapPending = false;
   setFlashcardRevealed(false);
   flashcardEl.classList.remove("flipped");
   srsHintEl.textContent = "";
@@ -577,12 +587,6 @@ function renderFlashcard() {
   flashcardCountEl.textContent = `${flashcardIndex + 1} / ${flashcardOrder.length}`;
 }
 
-// True while a flipped card turns back and its content hasn't been swapped yet.
-// flashcardIndex (and in review mode the deck) already point at the next card,
-// but the old one is still on screen, so flipping or rating now would act on
-// — and speak — a card the user doesn't see.
-let flashcardSwapPending = false;
-
 function goToFlashcard(newIndex) {
   const wasFlipped = flashcardFlipped;
   flashcardFlipped = false;
@@ -596,12 +600,14 @@ function goToFlashcard(newIndex) {
     // cases where transitionend never fires (e.g. reduced-motion, hidden tab).
     flashcardEl.classList.remove("flipped");
     flashcardSwapPending = true;
+    const gen = ++flashcardSwapGen;
     let swapped = false;
     const swap = () => {
       if (swapped) return;
       swapped = true;
-      flashcardSwapPending = false;
       flashcardEl.removeEventListener("transitionend", onTransitionEnd);
+      if (gen !== flashcardSwapGen) return; // the deck was rebuilt meanwhile
+      flashcardSwapPending = false;
       flashcardIndex = (newIndex + flashcardOrder.length) % flashcardOrder.length;
       renderFlashcard();
     };
@@ -1154,7 +1160,7 @@ function renderWeakSpots() {
 const RESET_STATS_CONFIRM =
   "Vynulovat statistiky?\n\n" +
   "Smaže se počet správných a chybných odpovědí u všech znaků a slov " +
-  "(slabá místa, výběr otázek). Opakování v Kartičkách a historie aktivity zůstanou.";
+  "(slabá místa, výběr otázek, zvládnutí v Pokroku). Opakování v Kartičkách a historie aktivity zůstanou.";
 renderWeakSpots();
 
 document.querySelectorAll("#categoryChips .chip").forEach(chip => {
