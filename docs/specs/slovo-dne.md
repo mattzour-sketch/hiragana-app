@@ -16,7 +16,8 @@ Opakování se tím omezí na slova, která uživatel skutečně zavedl.
 
 ## Pojmy
 
-- **Zavedené slovo** = slovo, které má záznam v SRS. Slovo se zavede (a) potvrzením „Naučeno“ ve
+- **Zavedené slovo** = slovo, které má záznam v SRS; v UI se tento stav všude jmenuje **„v opakování“**
+  (slovo „zavedeno“ se v UI nepoužívá). Slovo se zavede (a) potvrzením „Naučeno“ ve
   Slově dne, nebo (b) ohodnocením ✓/✗ v Kartičkách. Samotné otočení karty ani odpověď v Kvízu
   či Psaní slovo **nezavádí**.
 - **Pořadí osnovy** = pořadí karet v `FLASHCARDS` (data.js).
@@ -73,7 +74,7 @@ Opakování se tím omezí na slova, která uživatel skutečně zavedl.
 - [ ] Given režim „Všechny karty“, Then procházení všech 352 karet funguje beze změny; When ohodnotím
       ✓/✗ nezavedenou kartu, Then se tím zavede (SRS jako dnes).
 - [ ] Given dashboard Pokrok, Then „karet k opakování“ a „naplánováno na později“ počítají jen
-      zavedená slova a přibude údaj **„Zavedeno X / 352“**.
+      zavedená slova a přibude údaj **„X / 352 v opakování“**.
 
 ### Obsah a vydání
 - [ ] Given data, Then **každá z 352 karet** má pole `examples` s **právě 2** větami (tvar viz níže).

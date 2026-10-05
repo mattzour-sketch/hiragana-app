@@ -468,6 +468,14 @@ h2 {
   margin-bottom: 1.2rem;
 }
 
+/* These rows are display:flex, which would override [hidden] in the empty
+   review state (renderFlashcard hides them when the deck is empty). */
+.flashcard-stage[hidden],
+.flashcard-actions[hidden],
+.flashcard-know-actions[hidden] {
+  display: none;
+}
+
 .flashcard {
   width: 280px;
   height: 320px;

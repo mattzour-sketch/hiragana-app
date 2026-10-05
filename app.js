@@ -242,12 +242,14 @@ function nextDueTime() {
     .filter(due => due > Date.now());
   return times.length ? Math.min(...times) : null;
 }
+// "Zvládnuto" in Kartičky uses the same rule as the Slovíčka bar in Pokrok
+// (itemMastery), so both screens show the same number.
 function masteredCardCount() {
+  const stats = loadKanaStats();
   const srs = loadSrs();
-  return FLASHCARDS.filter(card => {
-    const entry = srs[segmentsToPlainText(card.segments)];
-    return entry && entry.box >= SRS_MASTERED_BOX;
-  }).length;
+  return FLASHCARDS
+    .filter(card => itemMastery(segmentsToPlainText(card.segments), stats, srs) === 2)
+    .length;
 }
 function formatInterval(ms) {
   const minutes = Math.round(ms / 60000);
@@ -258,13 +260,14 @@ function formatInterval(ms) {
   return days === 1 ? "1 den" : days < 5 ? `${days} dny` : `${days} dní`;
 }
 
-// Daily answer counts, used by the progress dashboard.
+// Daily answer counts, used by the progress dashboard, keyed by the local
+// calendar day. Older versions keyed them by the UTC day; those keys are kept
+// as they are (no migration). Answers given between local and UTC midnight
+// (00:00–02:00 in Prague in summer) were counted for the previous day, so
+// around the switch a day's count can show one day off.
 const ACTIVITY_KEY = "hiragana-activity";
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
 // Calendar day in the device's local time zone (the day rolls over at local
-// midnight, not UTC). Used by the word of the day; activity stays on todayKey().
+// midnight, not UTC). Used by the word of the day and the activity log.
 function localDateKey(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -278,16 +281,29 @@ function loadActivity() {
     return {};
   }
 }
-function recordActivity() {
-  const activity = loadActivity();
-  const key = todayKey();
+// Counts one answer for the local day of `now`. Pure, so it can be tested.
+function addActivity(activity, now) {
+  const key = localDateKey(now);
   activity[key] = (activity[key] || 0) + 1;
   // Keep the store small: only the last 30 days matter for the dashboard.
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const cutoff = localDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30));
   Object.keys(activity).forEach(k => {
     if (k < cutoff) delete activity[k];
   });
-  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity));
+  return activity;
+}
+function recordActivity() {
+  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(addActivity(loadActivity(), new Date())));
+}
+// The last n local calendar days up to `now`, oldest first. Steps by calendar
+// day, not by 24 h, so a DST change can't repeat or skip a day.
+function lastLocalDays(now, n) {
+  const days = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    days.push({ key: localDateKey(date), weekday: date.getDay() });
+  }
+  return days;
 }
 
 // 0 = not started, 1 = learning, 2 = mastered.
@@ -507,6 +523,8 @@ function renderFlashcard() {
         ? `Další karta bude připravená za ${formatInterval(next - Date.now())}.`
         : "Přepni na „Všechny karty“ a projdi si je znovu.";
       flashcardNextBatchEl.hidden = true;
+      // Review is done, but new words can still be added from the word of the day.
+      flashcardGoWordEl.hidden = firstUnintroducedIndex(FLASHCARDS, loadSrs()) === -1;
     }
     return;
   }
@@ -1729,17 +1747,16 @@ function renderProgress() {
     </div>
     <div class="srs-stat">
       <span class="srs-stat-value">${introduced} / ${FLASHCARDS.length}</span>
-      <span class="srs-stat-label">zavedeno</span>
+      <span class="srs-stat-label">v opakování</span>
     </div>
   `;
 
   const activity = loadActivity();
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-    const key = date.toISOString().slice(0, 10);
-    days.push({ key, count: activity[key] || 0, label: ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][date.getDay()] });
-  }
+  const days = lastLocalDays(new Date(), 7).map(({ key, weekday }) => ({
+    key,
+    count: activity[key] || 0,
+    label: ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][weekday],
+  }));
   const max = Math.max(1, ...days.map(d => d.count));
   const weekTotal = days.reduce((sum, d) => sum + d.count, 0);
   document.getElementById("progressActivity").innerHTML = `

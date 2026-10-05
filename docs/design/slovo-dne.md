@@ -166,7 +166,7 @@ examples: [ { segments: [{ t, f?, hl?, g? }], romaji, english }, { … } ]   // 
 dnes, nezavedené se nezavede. Kvíz beze změny.
 
 **Pokrok** (1215–1231): `scheduled = introducedCount() - due` (dnes `FLASHCARDS.length - due`, po změně by to
-bylo špatně). Přidat čtvrtý `.srs-stat` „Zavedeno“ s hodnotou `X / 352`. Pruhy „Slovíčka“ zůstávají.
+bylo špatně). Přidat čtvrtý `.srs-stat` „v opakování“ s hodnotou `X / 352`. Pruhy „Slovíčka“ zůstávají.
 
 ### `index.html`
 - Nový první tab `<button class="tab-btn active" data-tab="wordOfDay">Slovo dne</button>`, z `read` odebrat `active`.
