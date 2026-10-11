@@ -508,7 +508,7 @@ function renderFlashcard() {
     const remaining = dueCardIndices().length;
     flashcardGoWordEl.hidden = true;
     if (remaining > 0) {
-      flashcardEmptyTitleEl.textContent = "Dávka hotová 👏";
+      flashcardEmptyTitleEl.textContent = "Dávka hotová";
       flashcardEmptySubEl.textContent = `Zbývá ještě ${remaining} karet k opakování.`;
       flashcardNextBatchEl.hidden = false;
     } else if (introducedCount() === 0) {
@@ -518,7 +518,7 @@ function renderFlashcard() {
       flashcardGoWordEl.hidden = false;
     } else {
       const next = nextDueTime();
-      flashcardEmptyTitleEl.textContent = "Nic k opakování 🎉";
+      flashcardEmptyTitleEl.textContent = "Nic k opakování";
       flashcardEmptySubEl.textContent = next
         ? `Další karta bude připravená za ${formatInterval(next - Date.now())}.`
         : "Přepni na „Všechny karty“ a projdi si je znovu.";
@@ -1066,7 +1066,7 @@ function checkBuilderAnswer() {
   if (correct) {
     builderScore++;
     builderScoreEl.textContent = `Správně: ${builderScore}`;
-    builderFeedbackEl.textContent = "Správně! 🎉";
+    builderFeedbackEl.textContent = "Správně";
     builderFeedbackEl.className = "builder-feedback correct";
     speak(segmentsToPlainText(exercise.tokens.flat()));
   } else {
@@ -1353,7 +1353,7 @@ function finishQuiz() {
   quizPlay.hidden = true;
   quizResult.hidden = false;
   document.getElementById("resultText").textContent =
-    `Skóre ${score} / ${roundLength} — ${score === roundLength ? "perfektní! 🎉" : score >= roundLength * 0.7 ? "hezká práce!" : "trénuj dál!"}`;
+    `Skóre ${score} / ${roundLength}`;
   // With mistakes, practising them is the main next step; otherwise a new round.
   const hasMistakes = quizMistakes.length > 0;
   quizMistakesEl.hidden = !hasMistakes;
@@ -1578,8 +1578,8 @@ function renderTypingQuestion() {
   typingInputEl.value = "";
 
   if (!typingItem) {
-    typingPromptEl.textContent = "🎉";
-    typingSubEl.textContent = "Zatím nemáš žádná slabá místa — zkus jinou kategorii.";
+    typingPromptEl.textContent = "—";
+    typingSubEl.textContent = "Žádná slabá místa. Vyber jinou kategorii.";
     typingInputEl.disabled = true;
     return;
   }
@@ -1615,7 +1615,7 @@ function checkTypingAnswer() {
     typingNextBtn.focus();
   }
   typingScoreEl.textContent = `Správně: ${typingScore}`;
-  typingStreakEl.textContent = typingStreak >= 3 ? `🔥 ${typingStreak} v řadě` : "";
+  typingStreakEl.textContent = typingStreak >= 3 ? `${typingStreak} v řadě` : "";
 }
 
 // Same question again with an empty field; nothing is recorded yet.
@@ -1778,7 +1778,7 @@ function renderProgress() {
     .sort((a, b) => kanaWeight(b[0], stats) - kanaWeight(a[0], stats))
     .slice(0, 12);
   document.getElementById("progressWeak").innerHTML = weak.length === 0
-    ? `<p class="hint">Zatím žádné chyby — jen tak dál!</p>`
+    ? `<p class="hint">Zatím žádné chyby.</p>`
     : `<div class="weak-spots">${weak.map(([key, s]) =>
         `<span class="weak-chip" title="${s.correct} správně / ${s.wrong} chybně">${key}</span>`
       ).join("")}</div>`;
