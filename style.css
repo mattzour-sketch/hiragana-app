@@ -1349,6 +1349,10 @@ h2 {
   color: var(--text);
 }
 
+.option-btn rt {
+  font-size: 0.7rem;
+}
+
 .option-btn:hover {
   background: var(--accent-soft);
 }

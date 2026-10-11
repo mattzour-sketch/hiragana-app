@@ -1198,8 +1198,21 @@ document.querySelectorAll("#categoryChips .chip").forEach(chip => {
       return;
     }
     selectedCategories = active.map(c => c.dataset.cat);
+    updateDirectionLabels();
   });
 });
+
+// With Slovíčka the "reading" side is the word's meaning, so the direction
+// chips name what is really asked. Setup never mixes words with kana.
+const DIRECTION_LABELS = {
+  kana: { char2romaji: "Znak → výslovnost", romaji2char: "Výslovnost → znak", audio2char: "Poslech → znak" },
+  vocab: { char2romaji: "Slovo → význam", romaji2char: "Význam → slovo", audio2char: "Poslech → slovo" },
+};
+function updateDirectionLabels() {
+  const labels = DIRECTION_LABELS[selectedCategories.includes("vocab") ? "vocab" : "kana"];
+  document.querySelectorAll("#directionChips .chip").forEach(c => { c.textContent = labels[c.dataset.dir]; });
+}
+updateDirectionLabels();
 
 document.querySelectorAll("#directionChips .chip").forEach(chip => {
   chip.addEventListener("click", () => {
@@ -1316,7 +1329,10 @@ function nextQuestion() {
   options.forEach(opt => {
     const btn = document.createElement("button");
     btn.className = "option-btn";
-    btn.textContent = answerField(opt);
+    btn.dataset.key = opt[0];
+    // Word options show furigana, so the kanji can be read.
+    if (isVocabPair(opt) && selectedDirection !== "char2romaji") btn.innerHTML = opt[2];
+    else btn.textContent = answerField(opt);
     btn.addEventListener("click", () => handleAnswer(btn, opt));
     quizOptions.appendChild(btn);
   });
@@ -1332,9 +1348,8 @@ function handleAnswer(btn, opt) {
     quizScoreEl.textContent = `Skóre: ${score}`;
   } else {
     btn.classList.add("wrong");
-    const correctVal = answerField(currentQuestion);
     document.querySelectorAll(".option-btn").forEach(b => {
-      if (b.textContent === correctVal) b.classList.add("correct");
+      if (b.dataset.key === currentQuestion[0]) b.classList.add("correct");
     });
     addQuizMistake(quizMistakes, currentQuestion);
   }
