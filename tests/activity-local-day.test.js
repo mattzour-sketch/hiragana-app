@@ -82,8 +82,12 @@ test("lastLocalDays: přechod na letní/zimní čas nezdvojí ani nevynechá den
   }
 });
 
-test("app.js nepoužívá pro aktivitu UTC den (todayKey / toISOString)", () => {
-  assert.doesNotMatch(appSrc, /todayKey|toISOString/);
+test("aktivita nepoužívá UTC den (todayKey / toISOString)", () => {
+  assert.doesNotMatch(appSrc, /todayKey/);
+  // Jen kód aktivity: toISOString smí appka použít jinde (např. export).
+  for (const name of ["addActivity", "recordActivity", "lastLocalDays", "renderProgress"]) {
+    assert.doesNotMatch(fnSrc(name), /toISOString/, name);
+  }
 });
 
 test("Kartičky 'Dlouhodobě' počítá jen opakování s intervalem 7+ dní, ne statistiky", () => {
