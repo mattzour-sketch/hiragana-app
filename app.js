@@ -242,13 +242,13 @@ function nextDueTime() {
     .filter(due => due > Date.now());
   return times.length ? Math.min(...times) : null;
 }
-// "Zvládnuto" in Kartičky uses the same rule as the Slovíčka bar in Pokrok
-// (itemMastery), so both screens show the same number.
-function masteredCardCount() {
-  const stats = loadKanaStats();
+// "Dlouhodobě" in Kartičky counts only the review schedule: words whose
+// interval reached 7+ days. It is deliberately not Pokrok's mastery (which also
+// counts Kvíz and Psaní answers), so resetting stats leaves it untouched.
+function longTermCardCount() {
   const srs = loadSrs();
   return FLASHCARDS
-    .filter(card => itemMastery(segmentsToPlainText(card.segments), stats, srs) === 2)
+    .filter(card => (srs[segmentsToPlainText(card.segments)]?.box ?? -1) >= SRS_MASTERED_BOX)
     .length;
 }
 function formatInterval(ms) {
@@ -495,7 +495,7 @@ function refreshDueCount() {
 
 function renderFlashcard() {
   refreshDueCount();
-  flashcardKnownEl.textContent = `Zvládnuto: ${masteredCardCount()} / ${FLASHCARDS.length}`;
+  flashcardKnownEl.textContent = `Dlouhodobě: ${longTermCardCount()} / ${FLASHCARDS.length}`;
 
   const empty = flashcardOrder.length === 0;
   flashcardEmptyEl.hidden = !empty;

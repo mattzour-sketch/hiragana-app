@@ -86,20 +86,19 @@ test("app.js nepoužívá pro aktivitu UTC den (todayKey / toISOString)", () => 
   assert.doesNotMatch(appSrc, /todayKey|toISOString/);
 });
 
-test("Kartičky 'Zvládnuto' = stejné pravidlo jako pruh Slovíčka v Pokroku", () => {
+test("Kartičky 'Dlouhodobě' počítá jen opakování s intervalem 7+ dní, ne statistiky", () => {
   const stats = { "犬": { correct: 3, wrong: 0 }, "猫": { correct: 1, wrong: 0 } };
-  const srs = { "猫": { box: 3, due: 0 }, "鳥": { box: 1, due: 0 } };
+  const srs = { "猫": { box: 3, due: 0 }, "鳥": { box: 1, due: 0 }, "魚": { box: 5, due: 0 } };
   const FLASHCARDS = ["犬", "猫", "鳥", "魚"].map((t) => ({ segments: [{ t }] }));
   const box = {};
   eval(
     grab(/^const SRS_MASTERED_BOX = .*$/m, "SRS_MASTERED_BOX") + "\n" +
     "const loadKanaStats = () => stats; const loadSrs = () => srs;\n" +
-    ["segmentsToPlainText", "itemMastery", "masteredCardCount"].map(fnSrc).join("\n") +
-    "\n; box.masteredCardCount = masteredCardCount; box.itemMastery = itemMastery;"
+    ["segmentsToPlainText", "longTermCardCount"].map(fnSrc).join("\n") +
+    "\n; box.longTermCardCount = longTermCardCount;"
   );
-  const viaBar = FLASHCARDS.filter((c) => box.itemMastery(c.segments[0].t, stats, srs) === 2).length;
-  assert.strictEqual(box.masteredCardCount(), 2); // 犬 ze statistik, 猫 z SRS
-  assert.strictEqual(box.masteredCardCount(), viaBar);
+  // 猫 a 魚 (box ≥ 3); 犬 je zvládnutý jen ze statistik Kvízu a nepočítá se.
+  assert.strictEqual(box.longTermCardCount(), 2);
 });
 
 test("UI texty: stav slova se SRS záznamem je 'v opakování' (ne zavedeno / v učení)", () => {
