@@ -247,6 +247,10 @@
         <button class="chip" data-cat="weak">🎯 Slabá místa</button>
       </div>
     </div>
+    <div class="setup-group" id="typingRowsGroup">
+      <label>Řady</label>
+      <div class="chip-group row-chips" id="typingRowChips"></div>
+    </div>
     <div class="typing-progress">
       <span id="typingScore">Správně: 0</span>
       <span id="typingStreak"></span>
@@ -288,12 +292,14 @@
       <div class="setup-group">
         <label>Kategorie znaků</label>
         <div class="chip-group" id="categoryChips">
-          <button class="chip active" data-cat="basic">Základní</button>
-          <button class="chip" data-cat="dakuten">Dakuten</button>
-          <button class="chip" data-cat="yoon">Yōon</button>
+          <button class="chip active" data-cat="hiragana">Hiragana</button>
           <button class="chip" data-cat="katakana">Katakana</button>
           <button class="chip" data-cat="vocab">Slovíčka</button>
         </div>
+      </div>
+      <div class="setup-group" id="quizRowsGroup">
+        <label>Řady</label>
+        <div class="chip-group row-chips" id="quizRowChips"></div>
       </div>
       <div class="setup-group">
         <label>Směr</label>

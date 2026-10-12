@@ -1100,6 +1100,94 @@ function initBuilder() {
 }
 initBuilder();
 
+// --- Kana rows (shared by Kvíz and Psaní) ---
+// The row picker narrows the kana pool to chosen gojūon rows plus, optionally,
+// all dakuten or all yōon kana of the script. Rows are index ranges into the
+// BASIC arrays, which have the same order for hiragana and katakana; "わ" also
+// covers を and ん. One stored choice serves both tabs.
+const KANA_ROWS = [
+  { id: "a", from: 0, to: 5 },
+  { id: "ka", from: 5, to: 10 },
+  { id: "sa", from: 10, to: 15 },
+  { id: "ta", from: 15, to: 20 },
+  { id: "na", from: 20, to: 25 },
+  { id: "ha", from: 25, to: 30 },
+  { id: "ma", from: 30, to: 35 },
+  { id: "ya", from: 35, to: 38 },
+  { id: "ra", from: 38, to: 43 },
+  { id: "wa", from: 43, to: 46 },
+];
+const KANA_ROW_IDS = KANA_ROWS.map(r => r.id).concat("dakuten", "yoon");
+const DEFAULT_KANA_ROWS = KANA_ROWS.map(r => r.id);
+const KANA_ROWS_KEY = "hiragana-kana-rows";
+const KANA_SETS = {
+  hiragana: { basic: HIRAGANA_BASIC, dakuten: HIRAGANA_DAKUTEN, yoon: HIRAGANA_YOON },
+  katakana: { basic: KATAKANA_BASIC, dakuten: KATAKANA_DAKUTEN, yoon: KATAKANA_YOON },
+};
+
+// Kana of one script (a KANA_SETS entry) in the chosen rows, in chart order.
+function kanaPoolFor(sets, rows) {
+  const pool = [];
+  KANA_ROWS.forEach(r => {
+    if (rows.includes(r.id)) pool.push(...sets.basic.slice(r.from, r.to));
+  });
+  if (rows.includes("dakuten")) pool.push(...sets.dakuten);
+  if (rows.includes("yoon")) pool.push(...sets.yoon);
+  return pool;
+}
+
+// Stored choice -> known row ids in canonical order. Anything unreadable,
+// unknown or empty falls back to the default (all basic rows).
+function parseKanaRows(raw) {
+  let rows;
+  try {
+    rows = JSON.parse(raw);
+  } catch {
+    return [...DEFAULT_KANA_ROWS];
+  }
+  if (!Array.isArray(rows)) return [...DEFAULT_KANA_ROWS];
+  const valid = KANA_ROW_IDS.filter(id => rows.includes(id));
+  return valid.length ? valid : [...DEFAULT_KANA_ROWS];
+}
+
+// Turns one row on or off; the last row that is on stays on (same array back).
+function toggleKanaRow(rows, id) {
+  if (!KANA_ROW_IDS.includes(id)) return rows;
+  if (rows.includes(id)) return rows.length > 1 ? rows.filter(r => r !== id) : rows;
+  return KANA_ROW_IDS.filter(r => r === id || rows.includes(r));
+}
+
+function kanaRowLabel(id, sets) {
+  if (id === "dakuten") return "Dakuten";
+  if (id === "yoon") return "Yōon";
+  return sets.basic[KANA_ROWS.find(r => r.id === id).from][0];
+}
+
+let kanaRows = parseKanaRows(localStorage.getItem(KANA_ROWS_KEY));
+
+// Draws the row chips into a container, labelled in the given script.
+function renderKanaRowChips(container, script) {
+  const sets = KANA_SETS[script];
+  container.innerHTML = KANA_ROW_IDS.map(id => {
+    const on = kanaRows.includes(id);
+    return `<button type="button" class="chip row-chip${on ? " active" : ""}" data-row="${id}" aria-pressed="${on}">${kanaRowLabel(id, sets)}</button>`;
+  }).join("");
+}
+
+// One delegated listener per picker; onChange redraws the pickers and lets
+// the tab react (Psaní starts a new round).
+function bindKanaRowChips(container, onChange) {
+  container.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-row]");
+    if (!chip) return;
+    const next = toggleKanaRow(kanaRows, chip.dataset.row);
+    if (next === kanaRows) return;
+    kanaRows = next;
+    localStorage.setItem(KANA_ROWS_KEY, JSON.stringify(kanaRows));
+    onChange();
+  });
+}
+
 // --- Quiz ---
 // Vocab pairs mirror the kana [prompt, answer] shape, with two extra fields:
 // [plainWord, english, rubyHtml, romaji]. isVocabPair() branches on length.
@@ -1110,14 +1198,9 @@ const VOCAB_PAIRS = FLASHCARDS.map(c => [
   c.romaji,
 ]);
 const ALL_KANA = HIRAGANA_BASIC.concat(HIRAGANA_DAKUTEN, HIRAGANA_YOON, KATAKANA_ALL);
-const CATEGORY_MAP = {
-  basic: HIRAGANA_BASIC,
-  dakuten: HIRAGANA_DAKUTEN,
-  yoon: HIRAGANA_YOON,
-  katakana: KATAKANA_ALL,
-  vocab: VOCAB_PAIRS,
-};
-let selectedCategories = ["basic"];
+const HIRAGANA_KEYS = new Set(HIRAGANA_BASIC.concat(HIRAGANA_DAKUTEN, HIRAGANA_YOON).map(p => p[0]));
+// "hiragana" / "katakana" (both allowed, filtered by rows) or "vocab" alone.
+let selectedCategories = ["hiragana"];
 let selectedDirection = "char2romaji";
 
 function isVocabPair(pair) {
@@ -1199,8 +1282,18 @@ document.querySelectorAll("#categoryChips .chip").forEach(chip => {
     }
     selectedCategories = active.map(c => c.dataset.cat);
     updateDirectionLabels();
+    updateQuizRows();
   });
 });
+
+// Rows apply to kana only; labels follow the script when only Katakana is on.
+const quizRowsGroup = document.getElementById("quizRowsGroup");
+const quizRowChips = document.getElementById("quizRowChips");
+function updateQuizRows() {
+  quizRowsGroup.hidden = selectedCategories.includes("vocab");
+  const onlyKatakana = selectedCategories.length === 1 && selectedCategories[0] === "katakana";
+  renderKanaRowChips(quizRowChips, onlyKatakana ? "katakana" : "hiragana");
+}
 
 // With Slovíčka the "reading" side is the word's meaning, so the direction
 // chips name what is really asked. Setup never mixes words with kana.
@@ -1249,9 +1342,8 @@ let quizRetry = null;
 let quizAdvanceTimer = null;
 
 function buildPool() {
-  let pool = [];
-  selectedCategories.forEach(cat => pool = pool.concat(CATEGORY_MAP[cat]));
-  return pool;
+  if (selectedCategories.includes("vocab")) return VOCAB_PAIRS;
+  return selectedCategories.flatMap(script => kanaPoolFor(KANA_SETS[script], kanaRows));
 }
 
 // The answer field is the kana char for "romaji2char" and "audio2char", romaji for "char2romaji".
@@ -1259,18 +1351,30 @@ function answerField(pair) {
   return selectedDirection === "char2romaji" ? pair[1] : pair[0];
 }
 
-function pickOptions(correct, pool) {
-  const others = shuffle(pool.filter(p => p[0] !== correct[0]));
+// Three wrong options with answers distinct from each other and the correct
+// one, from `pool` first; when it can't give three (a small row choice, e.g.
+// just や), the rest come from `fallback`, so there are always four options.
+function pickOptions(correct, pool, fallback = []) {
   const wrong = [];
   const seen = new Set([answerField(correct)]);
-  for (const o of others) {
-    const val = answerField(o);
-    if (seen.has(val)) continue;
-    seen.add(val);
-    wrong.push(o);
-    if (wrong.length === 3) break;
+  for (const source of [pool, fallback]) {
+    for (const o of shuffle(source.filter(p => p[0] !== correct[0]))) {
+      if (wrong.length === 3) break;
+      const val = answerField(o);
+      if (seen.has(val)) continue;
+      seen.add(val);
+      wrong.push(o);
+    }
   }
   return shuffle([correct, ...wrong]);
+}
+
+// The whole set of the question's kind: all words, or all kana of its script.
+function scriptPoolOf(question) {
+  if (isVocabPair(question)) return VOCAB_PAIRS;
+  return HIRAGANA_KEYS.has(question[0])
+    ? HIRAGANA_BASIC.concat(HIRAGANA_DAKUTEN, HIRAGANA_YOON)
+    : KATAKANA_ALL;
 }
 
 // In weak-spot mode the round's own pool can be tiny (even 1 item), so wrong
@@ -1325,7 +1429,7 @@ function nextQuestion() {
     quizPrompt.textContent = selectedDirection === "char2romaji" ? currentQuestion[0] : currentQuestion[1];
   }
   quizOptions.innerHTML = "";
-  const options = pickOptions(currentQuestion, optionPoolFor(currentQuestion));
+  const options = pickOptions(currentQuestion, optionPoolFor(currentQuestion), scriptPoolOf(currentQuestion));
   options.forEach(opt => {
     const btn = document.createElement("button");
     btn.className = "option-btn";
@@ -1503,8 +1607,9 @@ const typingRetryBtn = document.getElementById("typingRetry");
 const typingNextBtn = document.getElementById("typingNext");
 
 function typingPool() {
-  if (typingCategory === "hiragana") return HIRAGANA_ALL.map(typingItemFromKana);
-  if (typingCategory === "katakana") return KATAKANA_ALL.map(typingItemFromKana);
+  if (typingCategory === "hiragana" || typingCategory === "katakana") {
+    return kanaPoolFor(KANA_SETS[typingCategory], kanaRows).map(typingItemFromKana);
+  }
   if (typingCategory === "vocab") return FLASHCARDS.map(typingItemFromCard);
   // Weak spots: whatever the user has actually got wrong, kana and words alike.
   const stats = loadKanaStats();
@@ -1697,14 +1802,37 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
   btn.click();
 });
+// Rows apply to Hiragana/Katakana only, labelled in that script.
+const typingRowsGroup = document.getElementById("typingRowsGroup");
+const typingRowChips = document.getElementById("typingRowChips");
+function updateTypingRows() {
+  const kana = typingCategory === "hiragana" || typingCategory === "katakana";
+  typingRowsGroup.hidden = !kana;
+  if (kana) renderKanaRowChips(typingRowChips, typingCategory);
+}
+
 document.querySelectorAll("#typingCategoryChips .chip").forEach(chip => {
   chip.addEventListener("click", () => {
     document.querySelectorAll("#typingCategoryChips .chip").forEach(c => c.classList.remove("active"));
     chip.classList.add("active");
     typingCategory = chip.dataset.cat;
+    updateTypingRows();
     startTypingRound();
   });
 });
+
+// The row choice is shared: a change in either tab redraws both pickers.
+bindKanaRowChips(quizRowChips, () => {
+  updateQuizRows();
+  updateTypingRows();
+});
+bindKanaRowChips(typingRowChips, () => {
+  updateQuizRows();
+  updateTypingRows();
+  startTypingRound();
+});
+updateQuizRows();
+updateTypingRows();
 
 // --- Progress dashboard ---
 function renderProgress() {
