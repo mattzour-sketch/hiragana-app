@@ -45,7 +45,9 @@ function showTab(id) {
   // wall-clock time (SRS due dates, the local day), so they refresh on every visit.
   if (id === "progress") renderProgress();
   if (id === "flashcards") buildFlashcardDeck();
-  if (id === "typing") startTypingRound();
+  // Psaní keeps its score and question across tab switches; a new round
+  // starts only when its category or kana rows changed (also from Kvíz).
+  if (id === "typing" && typingRoundKey !== typingSettingsKey()) startTypingRound();
   if (id === "wordOfDay") renderWordOfDay();
 }
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -1770,7 +1772,14 @@ function nextTypingQuestion() {
   renderTypingQuestion();
 }
 
+// The settings a round was started with; see showTab.
+let typingRoundKey = null;
+function typingSettingsKey() {
+  return `${typingCategory}|${kanaRows.join(",")}`;
+}
+
 function startTypingRound() {
+  typingRoundKey = typingSettingsKey();
   typingScore = 0;
   typingStreak = 0;
   typingScoreEl.textContent = "Správně: 0";

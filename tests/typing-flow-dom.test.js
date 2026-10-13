@@ -58,12 +58,13 @@ function makeTyping(items, initialStore = {}) {
 
   let typingScore = 0, typingStreak = 0, typingItem = null;
   let typingPhase = "answer", typingMissed = false, typingRecorded = false, typingAdvanceTimer = null;
+  let typingRoundKey = null, typingCategory = "vocab", kanaRows = [];
 
   const names = [
     "loadKanaStats", "saveKanaStats", "updateKanaStat", "loadSrs", "saveSrs", "scheduleSrs",
     "rescheduleIfIntroduced", "normalizeRomaji", "typingRecordFor", "recordTypingAnswer",
     "applyTypingRecord", "setTypingPhase", "settleTypingMiss", "renderTypingQuestion",
-    "checkTypingAnswer", "retryTypingQuestion", "nextTypingQuestion", "startTypingRound",
+    "checkTypingAnswer", "retryTypingQuestion", "nextTypingQuestion", "typingSettingsKey", "startTypingRound",
   ];
   eval(
     grab(/^const KANA_STATS_KEY = .*$/m, "KANA_STATS_KEY") + "\n" +
@@ -200,13 +201,13 @@ test("Psaní (app.js): chyba se zapíše i po Zkusit znovu → Přeskočit", () 
   assert.strictEqual(env.state().key, "猫");
 });
 
-test("Psaní (app.js): chyba se zapíše i při změně kategorie / návratu na záložku", () => {
+test("Psaní (app.js): chyba se zapíše i při změně kategorie nebo řad", () => {
   const env = makeTyping([DOG, CAT], introducedDog());
   env.type("wanwan");
   env.fns.startTypingRound();
   assert.deepStrictEqual(env.fns.loadKanaStats()["犬"], { correct: 0, wrong: 1 });
   assert.strictEqual(env.fns.loadSrs()["犬"].box, 0);
-  env.fns.startTypingRound(); // další přepnutí už nic nepřidá
+  env.fns.startTypingRound(); // další nové kolo už nic nepřidá
   assert.deepStrictEqual(env.fns.loadKanaStats()["犬"], { correct: 0, wrong: 1 });
   assert.strictEqual(env.activity, 1);
 });
