@@ -734,7 +734,10 @@ function parseWordOfDayState(raw, cards) {
   if (typeof state.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(state.date)) return null;
   if (typeof state.key !== "string") return null;
   if (!cards.some(card => segmentsToPlainText(card.segments) === state.key)) return null;
-  return { date: state.date, key: state.key };
+  // n = which word of that day this is (after "Další slovo"); absent means 1.
+  return Number.isInteger(state.n) && state.n > 1
+    ? { date: state.date, key: state.key, n: state.n }
+    : { date: state.date, key: state.key };
 }
 
 // Today's stored word stays for the whole day, even once introduced. Any other
@@ -835,9 +838,12 @@ function renderWordOfDay(justLearned = false) {
        ${learnedHtml}
        <button type="button" class="secondary-btn" data-action="next">Další slovo</button>`
     : `<button type="button" class="primary-btn" data-action="learn">Naučeno</button>`;
+  const n = state.n || 1;
+  const ordinal = n === 1 ? "Dnešní slovo" : `${n}. slovo dnes`;
   wodContentEl.innerHTML = `
     <p class="hint">Klepni na podtržené slovo a uvidíš jeho význam.</p>
     ${reviewHtml}
+    <p class="wod-ordinal">${ordinal} · ${cardIndex + 1} / ${FLASHCARDS.length}</p>
     <div class="wod-head">
       <div class="wod-word">${segmentsToHtml(card.segments)}</div>
       <div class="wod-romaji">${card.romaji}</div>
@@ -877,7 +883,10 @@ wodContentEl.addEventListener("click", (e) => {
     if (Date.now() < wodNextBlockedUntil) return;
     const next = firstUnintroducedIndex(FLASHCARDS, loadSrs());
     if (next !== -1) {
-      saveWordOfDayState({ date: localDateKey(new Date()), key: segmentsToPlainText(FLASHCARDS[next].segments) });
+      const today = localDateKey(new Date());
+      const current = loadWordOfDayState();
+      const n = current && current.date === today ? (current.n || 1) + 1 : 1;
+      saveWordOfDayState({ date: today, key: segmentsToPlainText(FLASHCARDS[next].segments), n });
     }
     renderWordOfDay();
     window.scrollTo(0, 0);

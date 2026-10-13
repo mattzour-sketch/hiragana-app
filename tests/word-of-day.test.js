@@ -200,3 +200,17 @@ test("resolveReviewNotice: jen uživatel s daty v SRS (Kartičky) → show, jina
   assert.strictEqual(resolveReviewNotice("xyz", {}), "done");
   assert.strictEqual(resolveReviewNotice("xyz", { "犬": { box: 1, due: 0 } }), "show");
 });
+
+test("parseWordOfDayState: pořadí slova dne (n) se zachová, neplatné n se zahodí", () => {
+  const raw = (n) => JSON.stringify({ date: "2026-09-27", key: keyOf(3), n });
+  assert.deepStrictEqual(parseWordOfDayState(raw(3), FLASHCARDS), { date: "2026-09-27", key: keyOf(3), n: 3 });
+  for (const bad of [1, 0, -2, 2.5, "3", null]) {
+    assert.deepStrictEqual(parseWordOfDayState(raw(bad), FLASHCARDS), { date: "2026-09-27", key: keyOf(3) });
+  }
+});
+
+test("resolveWordOfDay: nový den začíná znovu prvním slovem dne (bez n)", () => {
+  const state = { date: "2026-09-26", key: keyOf(4), n: 3 };
+  assert.deepStrictEqual(resolveWordOfDay(state, "2026-09-27", FLASHCARDS, {}),
+    { date: "2026-09-27", key: keyOf(0) });
+});

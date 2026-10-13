@@ -348,6 +348,13 @@ h2 {
   text-decoration: underline;
 }
 
+.wod-ordinal {
+  margin: 0 0 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .wod-head {
   background: var(--surface);
   border: 1px solid var(--border);
