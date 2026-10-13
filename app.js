@@ -1168,6 +1168,18 @@ let kanaRows = parseKanaRows(localStorage.getItem(KANA_ROWS_KEY));
 // Draws the row chips into a container, labelled in the given script.
 function renderKanaRowChips(container, script) {
   const sets = KANA_SETS[script];
+  // Update the existing chips in place so a keyboard user keeps focus on the
+  // chip they just toggled; build them only the first time.
+  const existing = container.querySelectorAll("[data-row]");
+  if (existing.length === KANA_ROW_IDS.length) {
+    existing.forEach(chip => {
+      const on = kanaRows.includes(chip.dataset.row);
+      chip.classList.toggle("active", on);
+      chip.setAttribute("aria-pressed", String(on));
+      chip.textContent = kanaRowLabel(chip.dataset.row, sets);
+    });
+    return;
+  }
   container.innerHTML = KANA_ROW_IDS.map(id => {
     const on = kanaRows.includes(id);
     return `<button type="button" class="chip row-chip${on ? " active" : ""}" data-row="${id}" aria-pressed="${on}">${kanaRowLabel(id, sets)}</button>`;
@@ -1354,15 +1366,19 @@ function answerField(pair) {
 // Three wrong options with answers distinct from each other and the correct
 // one, from `pool` first; when it can't give three (a small row choice, e.g.
 // just や), the rest come from `fallback`, so there are always four options.
+// Readings (meanings for words) must differ too: otherwise "ji" could offer
+// both じ and ジ (or じ and ぢ), and two options would be right.
 function pickOptions(correct, pool, fallback = []) {
   const wrong = [];
   const seen = new Set([answerField(correct)]);
+  const seenReadings = new Set([correct[1]]);
   for (const source of [pool, fallback]) {
     for (const o of shuffle(source.filter(p => p[0] !== correct[0]))) {
       if (wrong.length === 3) break;
       const val = answerField(o);
-      if (seen.has(val)) continue;
+      if (seen.has(val) || seenReadings.has(o[1])) continue;
       seen.add(val);
+      seenReadings.add(o[1]);
       wrong.push(o);
     }
   }
