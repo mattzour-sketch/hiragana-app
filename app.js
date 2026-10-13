@@ -40,6 +40,11 @@ themeToggle.addEventListener("click", () => {
 // Also called from in-app links (word of the day ↔ flashcards).
 function showTab(id) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === id));
+  // On a phone most tabs sit off-screen; keep the active one in view, also
+  // when it was opened from a link inside another tab.
+  // Only the bar scrolls (sideways); scrollIntoView would also move the page.
+  const activeBtn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
+  if (activeBtn) tabsEl.scrollTo({ left: tabScrollTarget(activeBtn), behavior: "smooth" });
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === id));
   // These panels depend on stored progress that other tabs change, and on
   // wall-clock time (SRS due dates, the local day), so they refresh on every visit.
@@ -53,6 +58,23 @@ function showTab(id) {
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => showTab(btn.dataset.tab));
 });
+
+// The tab bar hides its scrollbar, so a faded edge shows there are more tabs
+// that way.
+const tabsEl = document.querySelector(".tabs");
+// scrollLeft that centres a tab button in the bar.
+function tabScrollTarget(btn) {
+  const b = btn.getBoundingClientRect(), t = tabsEl.getBoundingClientRect();
+  return Math.max(0, tabsEl.scrollLeft + b.left - t.left - (t.width - b.width) / 2);
+}
+function updateTabFades() {
+  const max = tabsEl.scrollWidth - tabsEl.clientWidth;
+  tabsEl.classList.toggle("fade-left", tabsEl.scrollLeft > 2);
+  tabsEl.classList.toggle("fade-right", tabsEl.scrollLeft < max - 2);
+}
+tabsEl.addEventListener("scroll", updateTabFades, { passive: true });
+window.addEventListener("resize", updateTabFades);
+updateTabFades();
 
 // --- Speech ---
 let ttsVolume = parseFloat(localStorage.getItem("hiragana-volume") ?? "1");
