@@ -1223,6 +1223,12 @@ h2 {
   font-weight: 600;
 }
 
+.weak-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
 .practice-weak-btn {
   background: var(--accent);
   color: var(--on-accent);
@@ -1232,6 +1238,10 @@ h2 {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.progress-weak .practice-weak-btn {
+  margin-top: 0.7rem;
 }
 
 /* Own line under the weak spots, apart from "Procvičit". */

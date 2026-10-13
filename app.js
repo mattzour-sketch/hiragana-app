@@ -1269,7 +1269,7 @@ function renderWeakSpots() {
   container.innerHTML = `
     <span class="weak-spots-label">Nejvíc ti dělá potíže:</span>
     ${entries.map(([char]) => `<span class="weak-chip">${char}</span>`).join("")}
-    <button id="practiceWeak" class="practice-weak-btn">🎯 Procvičit</button>
+    <button id="practiceWeak" class="practice-weak-btn">Procvičit</button>
     <div class="weak-spots-footer">
       <button id="resetStats" class="reset-stats-btn">Vynulovat statistiky</button>
     </div>
@@ -1957,8 +1957,17 @@ function renderProgress() {
   document.getElementById("progressWeak").innerHTML = weak.length === 0
     ? `<p class="hint">Zatím žádné chyby.</p>`
     : `<div class="weak-spots">${weak.map(([key, s]) =>
-        `<span class="weak-chip" title="${s.correct} správně / ${s.wrong} chybně">${key}</span>`
-      ).join("")}</div>`;
+        `<span class="weak-chip" title="${s.correct} správně / ${s.wrong} chybně">${key} <span class="weak-count">${s.wrong}×</span></span>`
+      ).join("")}</div>
+      <button type="button" class="practice-weak-btn" data-action="practice-weak">Procvičit</button>`;
 }
+
+// Same round as "Procvičit" under the quiz setup: the weak spots in Kvíz.
+document.getElementById("progressWeak").addEventListener("click", (e) => {
+  if (!e.target.closest('[data-action="practice-weak"]')) return;
+  showTab("quiz");
+  startWeakQuiz();
+  window.scrollTo(0, 0);
+});
 renderProgress();
 startTypingRound();
