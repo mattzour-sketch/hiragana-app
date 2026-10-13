@@ -77,8 +77,18 @@ window.addEventListener("resize", updateTabFades);
 updateTabFades();
 
 // --- Speech ---
-let ttsVolume = parseFloat(localStorage.getItem("hiragana-volume") ?? "1");
+// Sound is on/off. The old volume slider is gone; a volume saved by it still
+// applies, and a saved 0 means the user had sound off.
+const SOUND_KEY = "hiragana-sound";
+const legacyVolume = parseFloat(localStorage.getItem("hiragana-volume") ?? "1");
+const ttsVolume = legacyVolume > 0 && legacyVolume <= 1 ? legacyVolume : 1;
+let soundOn = (localStorage.getItem(SOUND_KEY) ?? (legacyVolume === 0 ? "off" : "on")) !== "off";
 let selectedVoiceURI = localStorage.getItem("hiragana-voice") || "";
+// true / false once the system's voice list is known; null while it's empty
+// (some browsers fill it in later, or never).
+let japaneseVoice = null;
+// Set by the quiz once its state exists; called whenever the voice list changes.
+let onVoicesKnown = null;
 
 // Card words are spoken from their furigana, not their kanji: on its own a
 // single kanji has no context and TTS often picks another reading
@@ -94,7 +104,7 @@ function speechText(text) {
 }
 
 function speak(char) {
-  if (!("speechSynthesis" in window)) return;
+  if (!soundOn || !("speechSynthesis" in window)) return;
   const utter = new SpeechSynthesisUtterance(speechText(char));
   utter.lang = "ja-JP";
   utter.volume = ttsVolume;
@@ -108,7 +118,11 @@ function speak(char) {
 const voiceSelect = document.getElementById("voiceSelect");
 function populateVoices() {
   if (!("speechSynthesis" in window)) return;
-  const jaVoices = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("ja"));
+  const voices = speechSynthesis.getVoices();
+  const jaVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("ja"));
+  japaneseVoice = voices.length === 0 ? null : jaVoices.length > 0;
+  updateVoiceNotice();
+  if (onVoicesKnown) onVoicesKnown();
   if (jaVoices.length < 2) {
     voiceSelect.hidden = true;
     return;
@@ -121,6 +135,20 @@ function populateVoices() {
     selectedVoiceURI = jaVoices[0].voiceURI;
   }
 }
+// Shown when the device has no Japanese voice (or no speech at all), until
+// dismissed; it hides again by itself once a Japanese voice shows up.
+const VOICE_NOTICE_KEY = "hiragana-voice-notice";
+const voiceNoticeEl = document.getElementById("voiceNotice");
+function updateVoiceNotice() {
+  const missing = !("speechSynthesis" in window) || japaneseVoice === false;
+  voiceNoticeEl.hidden = !missing || localStorage.getItem(VOICE_NOTICE_KEY) === "done";
+}
+document.getElementById("voiceNoticeClose").addEventListener("click", () => {
+  localStorage.setItem(VOICE_NOTICE_KEY, "done");
+  voiceNoticeEl.hidden = true;
+});
+updateVoiceNotice();
+
 if ("speechSynthesis" in window) {
   populateVoices();
   speechSynthesis.addEventListener("voiceschanged", populateVoices);
@@ -130,15 +158,20 @@ voiceSelect.addEventListener("change", () => {
   localStorage.setItem("hiragana-voice", selectedVoiceURI);
 });
 
-const volumeSlider = document.getElementById("volumeSlider");
-const volumeValue = document.getElementById("volumeValue");
-volumeSlider.value = Math.round(ttsVolume * 100);
-volumeValue.textContent = `${volumeSlider.value}%`;
-volumeSlider.addEventListener("input", () => {
-  ttsVolume = volumeSlider.value / 100;
-  volumeValue.textContent = `${volumeSlider.value}%`;
-  localStorage.setItem("hiragana-volume", ttsVolume);
+const soundToggle = document.getElementById("soundToggle");
+function renderSoundToggle() {
+  soundToggle.textContent = soundOn ? "🔊" : "🔇";
+  soundToggle.setAttribute("aria-pressed", String(soundOn));
+  soundToggle.title = soundOn ? "Vypnout zvuk" : "Zapnout zvuk";
+}
+soundToggle.addEventListener("click", () => {
+  soundOn = !soundOn;
+  localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off");
+  if (!soundOn && "speechSynthesis" in window) speechSynthesis.cancel();
+  renderSoundToggle();
+  applyVoiceToQuiz();
 });
+renderSoundToggle();
 
 // --- Shared learning state ---
 // One store per concern, all keyed by the item itself (a kana char or a plain
@@ -1352,13 +1385,29 @@ function updateDirectionLabels() {
 }
 updateDirectionLabels();
 
+function selectDirection(dir) {
+  document.querySelectorAll("#directionChips .chip")
+    .forEach(c => c.classList.toggle("active", c.dataset.dir === dir));
+  selectedDirection = dir;
+}
 document.querySelectorAll("#directionChips .chip").forEach(chip => {
-  chip.addEventListener("click", () => {
-    document.querySelectorAll("#directionChips .chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-    selectedDirection = chip.dataset.dir;
-  });
+  chip.addEventListener("click", () => selectDirection(chip.dataset.dir));
 });
+
+// A listening round can't be played without sound: the direction is disabled
+// (and dropped if chosen) while sound is off or there's no Japanese voice.
+function applyVoiceToQuiz() {
+  const noVoice = !("speechSynthesis" in window) || japaneseVoice === false;
+  const reason = noVoice ? "Poslech nejde: zařízení nemá japonský hlas." : !soundOn ? "Poslech nejde: zvuk je vypnutý." : "";
+  const chip = document.querySelector('#directionChips .chip[data-dir="audio2char"]');
+  chip.disabled = Boolean(reason);
+  chip.title = reason;
+  document.getElementById("audioDirectionHint").textContent = reason;
+  document.getElementById("audioDirectionHint").hidden = !reason;
+  if (reason && selectedDirection === "audio2char") selectDirection("char2romaji");
+}
+applyVoiceToQuiz();
+onVoicesKnown = applyVoiceToQuiz;
 
 const quizSetup = document.getElementById("quizSetup");
 const quizPlay = document.getElementById("quizPlay");

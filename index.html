@@ -22,11 +22,7 @@
   <h1>ひらがな <span class="subtitle">Hiragana trenér</span></h1>
   <div class="topbar-actions">
     <select id="voiceSelect" class="voice-select" hidden title="Hlas výslovnosti"></select>
-    <div class="volume-control">
-      <span class="volume-icon">🔊</span>
-      <input type="range" id="volumeSlider" min="0" max="100" value="100">
-      <span class="volume-value" id="volumeValue">100%</span>
-    </div>
+    <button id="soundToggle" class="icon-btn" aria-pressed="true" title="Vypnout zvuk">🔊</button>
     <button id="installBtn" class="install-btn" hidden>📲 Instalovat appku</button>
     <button id="themeToggle" class="icon-btn" title="Přepnout téma">🌙</button>
   </div>
@@ -49,6 +45,11 @@
   <div class="review-notice" id="reviewNotice" hidden>
     <p>Opakování v Kartičkách teď obsahuje jen slova označená „Naučeno“ ve Slově dne nebo ohodnocená ✓/✗ v Kartičkách. Nová slova najdeš ve Slově dne.</p>
     <button type="button" class="secondary-btn" id="reviewNoticeClose">Zavřít</button>
+  </div>
+
+  <div class="review-notice" id="voiceNotice" hidden>
+    <p>Zařízení nemá japonský hlas, výslovnost se nepřehraje. Přidej japonštinu v nastavení převodu textu na řeč.</p>
+    <button type="button" class="secondary-btn" id="voiceNoticeClose">Zavřít</button>
   </div>
 
   <section id="wordOfDay" class="tab-panel active">
@@ -308,6 +309,7 @@
           <button class="chip" data-dir="romaji2char">Výslovnost → znak</button>
           <button class="chip" data-dir="audio2char">Poslech → znak</button>
         </div>
+        <p class="hint" id="audioDirectionHint" hidden></p>
       </div>
       <button id="startQuiz" class="primary-btn">Spustit kvíz</button>
       <p class="hint builder-hint">Kvíz se přizpůsobuje — znaky, ve kterých chybuješ, se objevují častěji.</p>

@@ -83,28 +83,6 @@ body {
   gap: 1rem;
 }
 
-.volume-control {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.volume-icon {
-  font-size: 1rem;
-}
-
-.volume-control input[type="range"] {
-  width: 90px;
-  accent-color: var(--accent);
-}
-
-.volume-value {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  min-width: 2.4rem;
-  text-align: right;
-}
-
 .icon-btn {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1282,6 +1260,11 @@ h2 {
   margin-bottom: 0.5rem;
 }
 
+#audioDirectionHint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
 .chip-group {
   display: flex;
   gap: 0.5rem;
@@ -1302,6 +1285,11 @@ h2 {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Row picker: one-kana labels, so the chips can be narrower. */
