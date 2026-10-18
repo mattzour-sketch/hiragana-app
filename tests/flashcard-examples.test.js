@@ -48,7 +48,7 @@ const lcp = (a, b) => { let n = 0; while (n < a.length && n < b.length && a[n] =
 // Dávky vět `examples` (spec: docs/specs/slovo-dne.md). Karty s indexem menším
 // než tato hranice už `examples` mít MUSÍ. Po každé dávce se posune; po dávce 8
 // (= FLASHCARDS.length) platí „každá z 352 karet má 2 věty“.
-const EXAMPLES_DONE_UNTIL = 169;
+const EXAMPLES_DONE_UNTIL = 223;
 
 // Validátor jedné věty (example i každá položka examples) – vrací pole chyb.
 function validateSentence(e, c) {
@@ -299,13 +299,20 @@ test("homonyma v examples: obě nové věty nesou význam karty v překladu", ()
     ["靴", "shoes", /\bshoes?\b/],                  // ne 靴下 (ponožky)
     ["靴下", "socks", /\bsocks?\b/],
     ["帽子", "hat", /\bhats?\b/],
+    // dávka 5 – slovesa jsou ve větě časovaná, 4. položka je kmen, který věta musí obsahovat
+    ["帰る", "to return home", /\b(home|back)\b/, "帰"],   // ne かえる (žába)
+    ["聞く", "to listen / ask", /\b(listen|hear|ask)/, "聞"],
+    ["寝る", "to sleep", /\b(sleep|sleeping|bed)\b/, "寝"],
+    ["開ける", "to open", /\bopen/, "開け"],
+    ["分かる", "to understand", /\b(understand|understood)\b/, "分か"], // ne 分ける (dělit)
+    ["着る", "to wear", /\b(wear|wearing|put on)\b/, "着"],          // ne 切る (řezat)
   ];
-  for (const [word, english, re] of cases) {
+  for (const [word, english, re, stem = word] of cases) {
     const c = FLASHCARDS.find((x) => wordOf(x.segments) === word && x.english === english);
     assert.ok(c, `chybí karta ${word} (${english})`);
     assert.ok(Array.isArray(c.examples), `${word}: chybí examples`);
     c.examples.forEach((e, k) => {
-      assert.ok(wordOf(e.segments).includes(word), `${word}: examples[${k}] neobsahuje slovo`);
+      assert.ok(wordOf(e.segments).includes(stem), `${word}: examples[${k}] neobsahuje slovo`);
       assert.match(e.english.toLowerCase(), re, `${word}: examples[${k}] "${e.english}" nesedí na význam`);
     });
   }
