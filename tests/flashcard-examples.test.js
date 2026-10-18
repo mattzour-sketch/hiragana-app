@@ -48,7 +48,7 @@ const lcp = (a, b) => { let n = 0; while (n < a.length && n < b.length && a[n] =
 // Dávky vět `examples` (spec: docs/specs/slovo-dne.md). Karty s indexem menším
 // než tato hranice už `examples` mít MUSÍ. Po každé dávce se posune; po dávce 8
 // (= FLASHCARDS.length) platí „každá z 352 karet má 2 věty“.
-const EXAMPLES_DONE_UNTIL = 223;
+const EXAMPLES_DONE_UNTIL = 273;
 
 // Validátor jedné věty (example i každá položka examples) – vrací pole chyb.
 function validateSentence(e, c) {
@@ -306,6 +306,15 @@ test("homonyma v examples: obě nové věty nesou význam karty v překladu", ()
     ["開ける", "to open", /\bopen/, "開け"],
     ["分かる", "to understand", /\b(understand|understood)\b/, "分か"], // ne 分ける (dělit)
     ["着る", "to wear", /\b(wear|wearing|put on)\b/, "着"],          // ne 切る (řezat)
+    // dávka 6 – přídavná jména jsou ve větě časovaná, 4. položka je kmen
+    ["暑い", "hot (weather)", /\bhot\b/, "暑"],                     // ne 熱い (horký na dotek)
+    ["冷たい", "cold (to touch)", /\bcold\b/, "冷た"],              // ne 寒い (zima venku)
+    ["高い", "high / expensive", /\b(high|highest|expensive)\b/, "高"],
+    ["速い", "fast", /\bfast\b/, "速"],                             // ne 早い (brzký)
+    ["遅い", "slow / late", /\b(slow|late)\b/, "遅"],
+    ["明るい", "bright", /\b(bright|light)\b/, "明る"],
+    ["軽い", "light (weight)", /\blight\b/, "軽"],
+    ["優しい", "kind / gentle", /\b(kind|gentle)\b/, "優し"],       // ne 易しい (snadný)
   ];
   for (const [word, english, re, stem = word] of cases) {
     const c = FLASHCARDS.find((x) => wordOf(x.segments) === word && x.english === english);
