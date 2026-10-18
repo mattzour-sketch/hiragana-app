@@ -1077,6 +1077,7 @@ function setupBuilderExercise() {
   builderFeedbackEl.textContent = "";
   builderFeedbackEl.className = "builder-feedback";
   builderCheckBtn.hidden = false;
+  builderResetBtn.hidden = false;
   builderNextBtn.hidden = true;
   builderPromptEl.textContent = exercise.english;
   builderCountEl.textContent = `${builderIndex + 1} / ${BUILDER_SENTENCES.length}`;
@@ -1086,7 +1087,12 @@ function setupBuilderExercise() {
 
 function renderBuilderChips(exercise) {
   builderAnswerEl.innerHTML = "";
-  const shuffledIdx = shuffle(exercise.tokens.map((_, i) => i));
+  // Never deal the tokens out already in the correct order.
+  const order = exercise.tokens.map((_, i) => i);
+  let shuffledIdx;
+  do {
+    shuffledIdx = shuffle(order);
+  } while (order.length > 1 && shuffledIdx.every((idx, pos) => idx === pos));
   builderBankEl.innerHTML = "";
   shuffledIdx.forEach(i => {
     const chip = document.createElement("button");
@@ -1128,6 +1134,7 @@ function checkBuilderAnswer() {
     builderAnswer.every((idx, pos) => idx === pos);
   builderSolved = true;
   builderCheckBtn.hidden = true;
+  builderResetBtn.hidden = true;
   builderNextBtn.hidden = false;
   if (correct) {
     builderScore++;
@@ -1142,15 +1149,10 @@ function checkBuilderAnswer() {
 }
 
 builderCheckBtn.addEventListener("click", checkBuilderAnswer);
+// Clears the answer before checking; the bank keeps its order.
 builderResetBtn.addEventListener("click", () => {
-  const exercise = BUILDER_SENTENCES[builderOrder[builderIndex]];
   builderAnswer = [];
-  builderSolved = false;
-  builderFeedbackEl.textContent = "";
-  builderFeedbackEl.className = "builder-feedback";
-  builderCheckBtn.hidden = false;
-  builderNextBtn.hidden = true;
-  renderBuilderChips(exercise);
+  renderBuilderState(BUILDER_SENTENCES[builderOrder[builderIndex]]);
 });
 builderNextBtn.addEventListener("click", () => {
   builderIndex = (builderIndex + 1) % builderOrder.length;
