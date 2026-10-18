@@ -610,7 +610,7 @@ const FLASHCARDS = [
   { emoji: "📖", segments: [{ t: "本", f: "ほん" }], romaji: "hon", english: "book",
     example: { segments: [{ t: "本", f: "ほん", hl: true }, { t: "を" }, { t: "読", f: "よ" }, { t: "みます" }], romaji: "hon o yomimasu", english: "I read a book." },
     examples: [
-      { segments: [{ t: "この", g: { romaji: "kono", text: "tento" } }, { t: "本", f: "ほん", hl: true }, { t: "は" }, { t: "面白", f: "おもしろ", g: { romaji: "omoshiroi", text: "zajímavý" } }, { t: "いです" }], romaji: "kono hon wa omoshiroi desu", english: "This book is interesting." },
+      { segments: [{ t: "この", g: { romaji: "kono", text: "tato" } }, { t: "本", f: "ほん", hl: true }, { t: "は" }, { t: "いくら", g: { romaji: "ikura", text: "kolik (stojí)" } }, { t: "です" }, { t: "か" }], romaji: "kono hon wa ikura desu ka", english: "How much is this book?" },
       { segments: [{ t: "図書館", f: "としょかん", g: { romaji: "toshokan", text: "knihovna" } }, { t: "で" }, { t: "本", f: "ほん", hl: true }, { t: "を" }, { t: "借", f: "か", g: { romaji: "kariru", text: "půjčit si" } }, { t: "りました" }], romaji: "toshokan de hon o karimashita", english: "I borrowed a book from the library." },
     ] },
   { emoji: "🏫", segments: [{ t: "学校", f: "がっこう" }], romaji: "gakkou", english: "school",
@@ -1466,7 +1466,7 @@ const FLASHCARDS = [
   { emoji: "🔑", segments: [{ t: "鍵", f: "かぎ" }], romaji: "kagi", english: "key",
     example: { segments: [{ t: "鍵", f: "かぎ", hl: true }, { t: "を" }, { t: "探", f: "さが" }, { t: "します" }], romaji: "kagi o sagashimasu", english: "I look for the key." },
     examples: [
-      { segments: [{ t: "ドア", g: { romaji: "doa", text: "dveře" } }, { t: "に" }, { t: "鍵", f: "かぎ", hl: true }, { t: "を" }, { t: "かけました", g: { romaji: "kakemashita", text: "zamknul(a) jsem (kagi o kakeru)" } }, { t: "か" }], romaji: "doa ni kagi o kakemashita ka", english: "Did you lock the door?" },
+      { segments: [{ t: "ドア", g: { romaji: "doa", text: "dveře" } }, { t: "に" }, { t: "鍵", f: "かぎ", hl: true }, { t: "を" }, { t: "かけました", g: { romaji: "kakemashita", text: "zamkl(a) (kagi o kakeru)" } }, { t: "か" }], romaji: "doa ni kagi o kakemashita ka", english: "Did you lock the door?" },
       { segments: [{ t: "鍵", f: "かぎ", hl: true }, { t: "は" }, { t: "かばん", g: { romaji: "kaban", text: "taška" } }, { t: "の" }, { t: "中", f: "なか", g: { romaji: "naka", text: "vnitřek / uvnitř" } }, { t: "に" }, { t: "ありました", g: { romaji: "arimashita", text: "byl (o věci)" } }], romaji: "kagi wa kaban no naka ni arimashita", english: "The key was in my bag." },
     ] },
   { emoji: "☂️", segments: [{ t: "傘", f: "かさ" }], romaji: "kasa", english: "umbrella",
@@ -2098,4 +2098,6 @@ const PARTICLE_GLOSS = {
   "も": { romaji: "mo", text: "také / i" },
   "から": { romaji: "kara", text: "od / protože" },
   "まで": { romaji: "made", text: "až do" },
+  "ね": { romaji: "ne", text: "že? / viď (hledá souhlas)" },
+  "よ": { romaji: "yo", text: "důraz (sděluji novinku)" },
 };

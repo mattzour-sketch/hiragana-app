@@ -147,6 +147,20 @@ test("3 věty karty mají navzájem různý japonský text", () => {
   assert.deepStrictEqual(bad, [], "duplicitní věty:\n" + bad.join("\n"));
 });
 
+test("věty examples se neopakují s žádnou jinou větou (ani na jiné kartě)", () => {
+  // původní `example` se mezi kartami sdílet smí (本を読みます u 本 i 読む),
+  // nové věty `examples` musí být všude unikátní
+  const seen = new Map();
+  FLASHCARDS.forEach((c, i) => sentencesOf(c).forEach((e, k) => {
+    const t = wordOf(e.segments);
+    if (!seen.has(t)) seen.set(t, []);
+    seen.get(t).push({ at: `#${i}:${k}`, isNew: k > 0 });
+  }));
+  const bad = [...seen].filter(([, v]) => v.length > 1 && v.some((x) => x.isNew))
+    .map(([t, v]) => `${t}: ${v.map((x) => x.at).join(" ")}`);
+  assert.deepStrictEqual(bad, [], "opakované věty:\n" + bad.join("\n"));
+});
+
 // Věty, které heuristika „záměna jednoho slova“ chybně označí, i když jsou
 // obsahově různé. Formát: "index karty:i-j" (indexy vět v example+examples).
 // Každá položka potřebuje komentář, proč je to v pořádku.
