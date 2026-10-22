@@ -45,10 +45,9 @@ const wordOf = (segs) => segs.map((s) => s.t).join("");
 const hasBadChars = (s) => typeof s === "string" && /[<>&]/.test(s);
 const lcp = (a, b) => { let n = 0; while (n < a.length && n < b.length && a[n] === b[n]) n++; return a.slice(0, n); };
 
-// Dávky vět `examples` (spec: docs/specs/slovo-dne.md). Karty s indexem menším
-// než tato hranice už `examples` mít MUSÍ. Po každé dávce se posune; po dávce 8
-// (= FLASHCARDS.length) platí „každá z 352 karet má 2 věty“.
-const EXAMPLES_DONE_UNTIL = 316;
+// Dávky vět `examples` (spec: docs/specs/slovo-dne.md). Všech 8 dávek je hotových,
+// takže každá z 352 karet musí mít 2 věty.
+const EXAMPLES_DONE_UNTIL = FLASHCARDS.length;
 
 // Validátor jedné věty (example i každá položka examples) – vrací pole chyb.
 function validateSentence(e, c) {
@@ -323,6 +322,13 @@ test("homonyma v examples: obě nové věty nesou význam karty v překladu", ()
     ["女", "woman", /\b(woman|girls?)\b/],          // 女の子 = dívka
     ["道", "road / street", /\b(road|street|way)\b/],
     ["橋", "bridge", /\bbridge\b/],                 // ne はし (hůlky)
+    // dávka 8
+    ["何", "what", /\bwhat\b/],                     // なに, ne なん v 何ですか
+    ["誰", "who", /\bwho(se)?\b/],
+    ["言葉", "word / language", /\b(word|language)\b/],
+    ["いくつ", "how many", /\b(how many|how old)\b/],
+    ["本当", "really / true", /\b(really|true)\b/],
+    ["多分", "maybe / probably", /\b(maybe|probably)\b/],
   ];
   for (const [word, english, re, stem = word] of cases) {
     const c = FLASHCARDS.find((x) => wordOf(x.segments) === word && x.english === english);
